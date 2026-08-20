@@ -1,12 +1,19 @@
-# Render blueprint for the codename relay.
-# Deploy: push this repo, then New → Blueprint on render.com and point it here.
-# Set the two secret values in the dashboard (they are marked sync:false).
+# Render blueprint for the codename relay (lives at the REPO ROOT because
+# Render's Blueprint flow only discovers render.yaml here; the service itself
+# is in relay/ via rootDir).
+# Deploy: New → Blueprint on render.com, pick this repo, then set the
+# sync:false values in the dashboard:
+#   BIT_GMAIL_USER / BIT_GMAIL_APP_PASSWORD — a DEDICATED Gmail for the relay
+#     (never a personal address: counsellors see it as the sender), 2FA on,
+#     App Password generated.
+#   BIT_PUBLIC_URL   — this service's own URL, e.g. https://bit-relay.onrender.com
+#   BIT_ALLOW_ORIGIN — https://goofturtles.github.io
 services:
   - type: web
     name: bit-relay
     runtime: node
     plan: free
-    rootDir: before-i-tell/relay
+    rootDir: relay
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /health

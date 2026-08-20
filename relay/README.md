@@ -89,8 +89,13 @@ Gmail allows roughly 500 messages/day — far beyond what this needs.
 
 ## Deploy
 
-`render.yaml` is a ready Render blueprint. Push, then **New → Blueprint** on
-render.com, and set the four `sync: false` secrets in the dashboard.
+`render.yaml` at the **repo root** (Blueprint discovery requires it there; it
+points at this folder via `rootDir: relay`) is a ready Render blueprint. Push,
+then **New → Blueprint** on render.com, and set the four `sync: false` values
+in the dashboard: the Gmail pair (use a dedicated relay account, never a
+personal one — counsellors see the sender address), `BIT_PUBLIC_URL` (the
+service's own onrender.com URL) and `BIT_ALLOW_ORIGIN`
+(`https://goofturtles.github.io`).
 
 ⚠️ **Durability.** The blueprint deploys on the free plan, which cannot attach a
 disk and has an ephemeral filesystem: conversations are lost on redeploy and on
