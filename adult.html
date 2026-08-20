@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Before I Tell — For the adult</title>
+  <meta name="description" content="Someone is about to tell you something hard. This two-minute page helps the conversation go well.">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fdf9f3">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#201914">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='38' rx='14' fill='%23c2410c'/%3E%3Cpath d='M20 48 L20 58 L32 48 Z' fill='%23c2410c'/%3E%3Ccircle cx='22' cy='29' r='4' fill='white'/%3E%3Ccircle cx='42' cy='29' r='4' fill='white' opacity='.55'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- link previews: this is the counsellor's first impression when the link
+       lands in a chat — calm, clear, no student data (fragments never reach
+       servers or link unfurlers) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Someone is about to tell you something hard.">
+  <meta property="og:description" content="This page helps the conversation go well. It takes two minutes to read.">
+  <meta property="og:image" content="https://goofturtles.github.io/before-i-tell/media/warm-poster.jpg">
+  <meta name="twitter:card" content="summary">
+  <script>
+    (function () {
+      document.documentElement.classList.add("js");
+      // independent trys: a corrupt theme value must not skip the motion stamp
+      try {
+        var t = JSON.parse(localStorage.getItem("bit:theme"));
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) { /* system preference applies */ }
+      try {
+        if (JSON.parse(localStorage.getItem("bit:motion")) === "off") document.documentElement.classList.add("motion-off");
+      } catch (e) { /* motion stays on */ }
+    })();
+  </script>
+  <link rel="preload" href="fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+  <a class="skip-link" href="#brief">Skip to content</a>
+
+  <nav class="nav" aria-label="Main">
+    <div class="nav__inner">
+      <a class="nav__brand" href="index.html">
+        <svg class="nav__mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="38" rx="14" fill="currentColor"/><path d="M20 48 L20 58 L32 48 Z" fill="currentColor"/><circle cx="22" cy="29" r="4" fill="var(--c-bg)"/><circle cx="42" cy="29" r="4" fill="var(--c-bg)" opacity=".55"/></svg>
+        Before I Tell
+      </a>
+      <div class="nav__links">
+        <a href="index.html">About</a>
+        <a href="app.html">Start</a>
+        <a href="adult.html" aria-current="page">For adults</a>
+        <button class="theme-toggle motion-toggle" type="button" aria-pressed="false" aria-label="Pause animations">
+          <svg class="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
+          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M7 4.5 L19 12 L7 19.5 Z"/></svg>
+        </button>
+        <button class="theme-toggle" type="button" aria-label="Switch theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-main">
+    <div class="app-view brief-wrap" id="brief">
+      <noscript>
+        <!-- the complete generic briefing, static — the more important half needs no payload -->
+        <div class="step-head">
+          <p class="eyebrow">Before I Tell · For the adult</p>
+          <h1 class="head-md">Someone is about to tell you something hard.</h1>
+          <p class="lead">This page helps the conversation go well. It takes two minutes to read.</p>
+        </div>
+        <section class="brief-section">
+          <h2 class="head-sm">How to receive what you're about to hear</h2>
+          <ol class="brief-steps">
+            <li><span><b>Listen all the way through first.</b><p>No questions, no advice, no visible alarm — even helpful interruptions tell them to stop.</p></span></li>
+            <li><span><b>Believe them.</b><p>The strongest predictor of whether a young person keeps seeking help is whether the first adult believed them.</p></span></li>
+            <li><span><b>Don't promise secrecy — say what you must share, before they start.</b><p>In Ontario, every adult must report suspected abuse or neglect of anyone under 16 directly to a children's aid society — even things told "in confidence." Say this up front, plainly and kindly.</p></span></li>
+            <li><span><b>Let silence happen.</b><p>If they go quiet or cry, wait. The pause is part of the telling.</p></span></li>
+            <li><span><b>End with what happens next — decided together.</b><p>Name one concrete next step and when you'll check in.</p></span></li>
+          </ol>
+        </section>
+        <section class="brief-section">
+          <h2 class="head-sm">The hard case</h2>
+          <div class="hard-case">
+            <h3>What if they ask you not to tell anyone — and it's something you must report?</h3>
+            <p>Honor every request you legally can, and be honest immediately about the one you can't: "I'm going to do everything you asked. One thing I can't do is keep this part secret — the law says I have to involve people whose whole job is protecting you. I'll tell you exactly what happens next, and I'm not going anywhere."</p>
+            <p>Under Ontario's Child, Youth and Family Services Act, the duty to report is yours personally — you must call a children's aid society directly and cannot delegate it. For 16–17 year olds, reporting is permitted rather than mandatory, which gives you room to plan next steps together.</p>
+            <p class="small">Source: Ontario College of Teachers, Professional Advisory on the Duty to Report; OACAS.</p>
+          </div>
+        </section>
+        <p class="decode-note">This link may also carry the young person's specific requests — enable JavaScript to see them. Everything above applies either way.</p>
+      </noscript>
+    </div>
+    <div class="container container--text no-print" style="padding-bottom: 64px;">
+      <div class="btn-row">
+        <button class="btn btn--secondary" type="button" id="print-btn">Print this page</button>
+        <a class="btn btn--ghost" href="index.html">What is Before I Tell?</a>
+      </div>
+    </div>
+  </main>
+
+  <aside class="crisis" aria-label="Crisis support">
+    <div class="crisis__inner">
+      <span class="crisis__label">If they're in danger right now:</span>
+      <a href="tel:911">911</a>
+      <a href="tel:1-800-668-6868">Kids Help Phone 1-800-668-6868</a>
+      <a href="tel:988">9-8-8 Suicide Crisis Helpline</a>
+    </div>
+  </aside>
+
+  <footer class="footer">
+    <div class="container">
+      <span>Before I Tell — this page carries their requests, never their story.</span>
+      <span>Rules referenced are Ontario's. Not legal advice.</span>
+    </div>
+  </footer>
+
+  <script type="module" src="js/adult.js"></script>
+</body>
+</html>

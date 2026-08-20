@@ -1,0 +1,40 @@
+# Render blueprint for the codename relay.
+# Deploy: push this repo, then New → Blueprint on render.com and point it here.
+# Set the two secret values in the dashboard (they are marked sync:false).
+services:
+  - type: web
+    name: bit-relay
+    runtime: node
+    plan: free
+    rootDir: before-i-tell/relay
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: BIT_RELAY_MODE
+        value: live
+      - key: BIT_POLL_SECONDS
+        value: "20"
+      - key: BIT_RETAIN_DAYS
+        value: "90"
+      - key: BIT_GMAIL_USER
+        sync: false
+      - key: BIT_GMAIL_APP_PASSWORD
+        sync: false
+      - key: BIT_PUBLIC_URL
+        sync: false
+      - key: BIT_ALLOW_ORIGIN
+        sync: false
+    # NOTE ON DURABILITY — read before demoing.
+    # Render's FREE plan cannot attach a disk, and its filesystem is ephemeral:
+    # conversations are lost on every redeploy and on spin-down after inactivity.
+    # A dropped thread also loses any counsellor reply that arrives afterwards.
+    # Fine for a judged demo; NOT fine for real students.
+    # To make it durable, switch `plan: free` to `plan: starter` and uncomment:
+    #
+    #   - key: BIT_DATA_DIR
+    #     value: /var/data
+    # disk:
+    #   name: bit-relay-data
+    #   mountPath: /var/data
+    #   sizeGB: 1

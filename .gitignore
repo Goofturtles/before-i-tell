@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.eml
+relay/data/
+relay/outbox/
+relay/inbox-drop/

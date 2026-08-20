@@ -1,0 +1,1145 @@
+/* ============================================================
+   Before I Tell — base: reset, typography, layout, nav, motion
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+/* fly-in start positions extend past the viewport edge; clip (NOT hidden —
+   hidden would create a scroll container and break sticky pinning) */
+html, body { overflow-x: clip; }
+/* browsers without clip also lack scroll-timeline pins, so hidden is safe there */
+@supports not (overflow: clip) {
+  html, body { overflow-x: hidden; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-text);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  transition: background 0.4s var(--ease-apple-standard), color 0.4s var(--ease-apple-standard);
+}
+
+h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+p { margin: 0 0 1em; }
+/* links are text-colored and underlined — AA by construction on every surface */
+a { color: var(--c-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+img, svg { max-width: 100%; display: block; }
+button { font: inherit; cursor: pointer; }
+
+/* --- skip link --- */
+.skip-link {
+  position: absolute;
+  left: 16px; top: -48px;
+  z-index: 200;
+  padding: 10px 18px;
+  background: var(--c-btn-bg);
+  color: var(--c-btn-ink);
+  border-radius: var(--r-pill);
+  font-size: var(--t-body-sm);
+  font-weight: 600;
+  transition: top 0.2s var(--ease-apple-out);
+}
+.skip-link:focus-visible { top: 12px; text-decoration: none; }
+
+/* --- focus --- */
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.btn:focus-visible, .pill:focus-visible { outline-offset: 2px; }
+
+/* --- type roles: bold but rounded-feeling, never severe ---
+   role classes carry the display face themselves: h1-h4 get it from the
+   element rule, but a role on a <p> (the story beats) must not fall back
+   to the body font (bug: the story scene shipped in Segoe) */
+.display-xl, .display-lg, .display-md, .head-lg, .head-md, .head-sm {
+  font-family: var(--font-display);
+}
+.display-xl {
+  font-size: var(--t-display-xl);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.08;
+}
+.display-lg {
+  font-size: var(--t-display-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.head-lg {
+  font-size: var(--t-head-lg);
+  font-weight: 800; /* the chunky voice carries past the fold, not just the hero */
+  letter-spacing: -0.018em;
+  line-height: 1.08;
+}
+.head-md {
+  font-size: var(--t-head-md);
+  font-weight: 800;
+  letter-spacing: -0.014em;
+  line-height: 1.12;
+}
+.head-sm {
+  font-size: var(--t-head-sm);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.lead {
+  font-size: var(--t-body-lg);
+  line-height: 1.45;
+  color: var(--c-text-2);
+  letter-spacing: -0.005em;
+}
+.eyebrow {
+  display: inline-block;
+  font-size: var(--t-body-sm);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--c-accent-deep);
+  background: var(--c-accent-soft);
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  margin: 0 0 var(--s-3);
+  line-height: 1.5;
+}
+.caption { font-size: var(--t-caption); color: var(--c-text-3); line-height: 1.5; }
+.muted { color: var(--c-text-2); }
+.small { font-size: var(--t-body-sm); line-height: 1.5; }
+
+/* --- containers & sections --- */
+.container {
+  max-width: var(--w-content);
+  margin-inline: auto;
+  padding-inline: var(--s-4);
+}
+.container--text  { max-width: var(--w-text); }
+.container--wide  { max-width: var(--w-wide); }
+.container--bleed { max-width: var(--w-bleed); }
+.center { text-align: center; }
+
+.section { padding-block: var(--s-9); }
+[id] { scroll-margin-top: 64px; } /* anchors land clear of the sticky nav */
+.section--hero { padding-block: var(--s-8) var(--s-9); position: relative; }
+.section--alt { background: var(--c-surface); }
+
+/* tinted panel sections: big rounded color blocks floating on the paper
+   (Family.co-style section rhythm — the page breathes in color, not hairlines) */
+.section--tint {
+  background: var(--tint, var(--c-surface));
+  border-radius: clamp(28px, 4vw, 48px);
+  margin-inline: clamp(8px, 1.2vw, 18px);
+  margin-block: var(--s-4);
+  border-top: none !important;
+}
+/* (the .section--tint + .section hairline suppression lives AFTER the generic
+   .section + .section rule — equal specificity, source order decides) */
+
+/* hand-drawn scribble underline under one load-bearing word per section */
+.u-scrib { position: relative; white-space: nowrap; }
+.u-scrib svg {
+  position: absolute;
+  left: -2%;
+  bottom: -0.16em;
+  width: 104%;
+  height: 0.22em;
+  overflow: visible;
+  pointer-events: none;
+}
+.u-scrib path { fill: none; stroke: var(--c-accent); stroke-width: 4; stroke-linecap: round; }
+/* the variant went green when orange became the brand (class name kept
+   for HTML stability) */
+.u-scrib--coral path { stroke: #1d7a46; }
+
+/* the wiggly arrow pointing from the heading down at the ladder (decor) */
+.doodle-arrow {
+  position: absolute;
+  right: 4%;
+  top: -8px;
+  width: clamp(48px, 6vw, 80px);
+  height: auto;
+  color: var(--c-accent);
+  pointer-events: none;
+}
+@media (max-width: 900px) { .doodle-arrow { display: none; } }
+
+/* ============================================================
+   PLAYFUL HERO — warm token ground (cream by day, indigo by
+   night), chunky Bricolage display type with a highlighted
+   word on a tilted sun pill, and the film in a sticker-framed
+   tilted card (ink outline + hard pop shadow).
+   ============================================================ */
+.hero--play { overflow: hidden; }
+
+/* under the headline: copy left, film card right, card tucked up into the
+   whitespace the short second line leaves free */
+.hero-under {
+  display: grid;
+  grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
+  gap: var(--s-7);
+  align-items: center;
+  margin-top: var(--s-5);
+}
+/* a gentle tuck under the second line's descenders — the headline always wins */
+.hero-under .hero-media { margin-top: clamp(-36px, -2.2vw, -14px); }
+@media (max-width: 900px) {
+  .hero-under { grid-template-columns: 1fr; gap: var(--s-6); }
+  .hero-under .hero-media { margin-top: 0; }
+}
+
+/* the display face: HUGE and chunky, full container width — the scale is
+   the design (lusion runs 128px; timid display type reads as a template) */
+.hero-display {
+  font-family: var(--font-display);
+  font-size: clamp(44px, 7.6vw, 118px);
+  font-weight: 800;
+  letter-spacing: -0.028em;
+  line-height: 1.0;
+  text-wrap: balance;
+}
+/* the highlighted word: a sun sticker on its own line — committed-BRIGHT in
+   both themes (same caution-tape energy as the marquee), ink text on sun */
+.hl-pill {
+  display: inline-block;
+  background: #ffd98e;
+  color: #33261e;
+  border: 2px solid #33261e; /* literal: dark-theme's lighter border would wash on the bright pill */
+  border-radius: 0.3em;
+  padding: 0 0.18em 0.04em;
+  rotate: -2deg;
+  box-shadow: 0.09em 0.09em 0 var(--pop-color);
+}
+.hero-lead { color: var(--c-text-2); }
+.hero-caption { color: var(--c-text-2); }
+
+/* the film card: a tilted sticker with the clip inside */
+.hero-media { position: relative; }
+.hero-card {
+  position: relative;
+  rotate: 2.4deg;
+  border-radius: var(--r-card);
+  border: 2px solid var(--ink-line);
+  box-shadow: var(--pop-lg);
+  overflow: hidden;
+  /* poster paints as background so reduced-motion (video hidden) still shows it */
+  background: var(--c-surface) url("../media/hero-poster.jpg") center / cover no-repeat;
+  transition: rotate 0.35s var(--ease-apple-spring), translate 0.35s var(--ease-apple-spring);
+}
+.hero-card video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1216 / 704;
+  object-fit: cover;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-media:hover .hero-card { rotate: 0.8deg; translate: 0 -5px; }
+}
+/* the corner stickers: honest trust copy worn as badges */
+.hero-sticker {
+  position: absolute;
+  z-index: 2;
+  background: var(--c-bg-page);
+  color: var(--c-text);
+  border: 2px solid var(--ink-line);
+  border-radius: var(--r-pill);
+  box-shadow: var(--pop-sm);
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--t-body-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.hero-sticker--a { top: -16px; right: 6%; rotate: -5deg; }
+.hero-sticker--b { bottom: -14px; left: 4%; rotate: 3deg; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-card video { display: none; } /* the background poster paints instead */
+}
+@media (forced-colors: active) {
+  .hero-card video { display: none; }
+}
+
+/* hand-drawn sparkles around the headline (decor) */
+.hero-spark {
+  position: absolute;
+  width: 30px; height: 30px;
+  color: var(--c-accent);
+  pointer-events: none;
+}
+.hero-spark--a { top: -26px; right: 22%; rotate: 12deg; }
+.hero-spark--b { bottom: -8px; left: 42%; width: 20px; height: 20px; color: #d99f20; rotate: -10deg; }
+@media (max-width: 900px) { .hero-spark { display: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-spark { animation: spark-twinkle 2.6s var(--ease-apple-standard) infinite alternate; }
+  .hero-spark--b { animation-delay: -1.2s; }
+}
+@keyframes spark-twinkle {
+  from { scale: 0.85; opacity: 0.7; }
+  to   { scale: 1.1;  opacity: 1; }
+}
+
+/* ============================================================
+   MARQUEE — the promise strip: a tilted sun ribbon between the
+   hero and the story. Committed-bright in both themes (caution-
+   tape energy), ink text on sun.
+   ============================================================ */
+.marquee {
+  position: relative;
+  z-index: 2;
+  background: #ffd98e;
+  color: #33261e;
+  border-block: 2px solid #33261e;
+  rotate: -1.2deg;
+  scale: 1.02;
+  /* negative BOTH ways: the next section slides underneath, so the tilt
+     never opens a cream wedge against the dark story ground (critic-caught) */
+  margin-block: -12px -18px;
+  overflow: hidden;
+}
+.marquee__track {
+  display: flex;
+  width: max-content;
+  padding-block: 12px 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--t-body);
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* each group carries its own trailing gap so a -50% shift wraps seamlessly */
+.marquee__group {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding-right: var(--s-5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .marquee__track { animation: marquee-roll 30s linear infinite; }
+}
+@keyframes marquee-roll {
+  to { translate: -50% 0; } /* track holds exactly two copies of the run */
+}
+@media (forced-colors: active) {
+  .marquee { display: none; } /* decorative repetition, noisy for SR/HC */
+}
+
+/* masked line reveal — each line rises out of its own clip window on load.
+   padding + negative margin on every side: the mask must not amputate
+   descenders (y, g, p) at tight display line-heights, nor the corners of
+   the rotated .hl-pill and its offset shadow */
+.line {
+  display: block;
+  overflow: hidden;
+  padding: 0.1em 0.14em 0.18em;
+  margin: -0.1em -0.14em -0.18em;
+}
+.line-inner { display: inline-block; }
+.rise { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  html.js .rise {
+    opacity: 0;
+    transform: translateY(105%);
+    animation: rise-in 1.1s var(--ease-apple-out) both;
+  }
+  html.js .rise--1 { animation-delay: 0.1s; }
+  html.js .rise--2 { animation-delay: 0.25s; }
+  html.js .rise--3 { animation-delay: 0.38s; }
+  html.js .rise--4 { animation-delay: 0.55s; }
+  html.js .rise--5 { animation-delay: 0.7s; }
+  /* non-line elements rise a shorter distance */
+  html.js p.rise, html.js div.rise { transform: translateY(28px); animation-name: rise-in-soft; }
+}
+@keyframes rise-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rise-in-soft {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* JS smoothing replaces CSS smooth-behavior (double-easing otherwise) */
+html.smooth-js { scroll-behavior: auto; }
+
+/* user-facing motion pause (nav toggle, persisted as bit:motion) — stops the
+   PERPETUAL motion only: infinite decor loops here, videos via JS. This is
+   WCAG 2.2.2's stop control, and 2.2.2 covers auto-moving content, so the
+   scope is deliberate: one-shot entrances and scroll-scrubbed scenes are
+   user-driven/brief and MUST keep running — a blanket pause would freeze
+   their `both`-fill keyframes at opacity 0 (invisible hero, invisible
+   crisis takeover panel — audit-caught blocker). */
+html.motion-off .marquee__track,
+html.motion-off .hero-spark,
+html.motion-off .hero-hint::after { animation-play-state: paused !important; }
+
+/* ============================================================
+   SCROLLYTELLING — pinned scenes, scrubbed by scroll position.
+   Structure-first: every beat is real stacked DOM. Without
+   scroll-timeline support or with reduced motion, the pin
+   collapses and content reads as a normal page.
+   ============================================================ */
+
+/* --- pinned hero: the film holds while the content lifts away --- */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .hero-pin { height: 220vh; }
+    .hero-pin .hero-stage {
+      position: sticky;
+      top: 0; /* NOT calc(100vh - 100%): % resolves against the 220vh container
+                 and permanently detaches the pin (audit-caught) */
+      min-height: 100vh;
+      min-height: 100svh;
+      display: flex; align-items: center;
+      view-timeline-name: --hero;
+    }
+    .hero-exit {
+      animation: hero-exit linear both;
+      animation-timeline: --hero;
+      animation-range: contain 55% contain 100%;
+    }
+    /* the film card drifts and straightens slightly as the pin progresses */
+    .hero-pin .hero-card { animation: hero-card-drift linear both; animation-timeline: --hero; }
+    .hero-hint {
+      animation: hint-fade linear both;
+      animation-timeline: --hero;
+      animation-range: contain 0% contain 18%;
+    }
+    /* short viewports can't fit the hero content — drop the pin entirely.
+       MUST come after the animation rules above: equal specificity, so
+       source order is what lets these resets win (audit-caught) */
+    @media (max-height: 560px) {
+      .hero-pin { height: auto; }
+      .hero-pin .hero-stage { position: static; }
+      .hero-exit, .hero-pin .hero-card, .hero-hint { animation: none; }
+    }
+  }
+}
+@keyframes hero-exit {
+  /* visibility flips discretely at the end: faded CTAs must not stay focusable */
+  to { opacity: 0; translate: 0 -8vh; scale: 0.96; visibility: hidden; }
+}
+@keyframes hero-card-drift { to { rotate: 0.4deg; translate: 0 -3vh; } }
+@keyframes hint-fade { to { opacity: 0; } }
+
+.hero-hint {
+  position: absolute;
+  bottom: 28px; left: 50%;
+  translate: -50% 0;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--c-text-2);
+  font-size: var(--t-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.hero-hint::after {
+  content: "";
+  width: 2px; height: 28px;
+  border-radius: 1px;
+  background: linear-gradient(var(--c-accent), transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-hint::after { animation: hint-pulse 1.6s var(--ease-apple-out) infinite; }
+}
+@keyframes hint-pulse {
+  0% { transform: scaleY(0.3); transform-origin: top; opacity: 1; }
+  70% { transform: scaleY(1); opacity: 0.5; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+
+/* --- pinned story: three beats swap inside one held scene ---
+   Committed-dark in BOTH themes: the scene plays over a dark generated video
+   (amber stars in a warm dusk), so its palette is fixed literals. */
+.story { position: relative; background: #33160a; color: #fdf9f3; }
+/* contrast insurance for text over bright video frames — unconditional, since
+   both the scrub path AND the loop fallback play video under the beats
+   (reduced-motion hides the video, where the shadow is simply harmless) */
+.story .beat { text-shadow: 0 2px 24px rgba(40, 16, 6, 0.85), 0 1px 6px rgba(40, 16, 6, 0.7); }
+/* the beats speak the display language at display SCALE — this is the
+   emotional center of the page, not a caption over stock footage */
+.story .head-lg {
+  font-size: clamp(34px, 4.8vw, 68px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+/* one key phrase per beat glows sun — the hero pill's color, quoted softly */
+.story .beat b { color: #ffd98e; font-weight: 800; }
+/* soft legibility vignette behind the text (gentle — the star field is
+   already dark; this just steadies the ground under the beats) */
+.story-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* above the z-auto video (later in paint order), below the z-1 beats */
+  background: radial-gradient(ellipse 62% 52% at 50% 46%, rgba(40, 16, 6, 0.35), transparent 72%);
+  pointer-events: none;
+}
+
+.story-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.story-stage { position: relative; }
+.story-stage > :not(.story-video) { position: relative; z-index: 1; }
+/* reduced motion: no moving video — the poster paints via CSS instead */
+@media (prefers-reduced-motion: reduce) {
+  .story-video { display: none; }
+  .story { background: #33160a url("../media/story-poster.jpg") center / cover no-repeat; background-blend-mode: multiply; }
+}
+
+/* --- warm ambient loop behind the closing CTA --- */
+.cta-ambient { position: relative; overflow: hidden; }
+.cta-ambient__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.cta-ambient > .container { position: relative; z-index: 1; }
+/* the pastel loop brightens the ground — secondary text must step up to full
+   ink or dark-theme drops to ~2.6:1 (audit-caught AA failure) */
+.cta-ambient .lead { color: var(--c-text); }
+@media (prefers-reduced-motion: reduce) {
+  .cta-ambient__video { display: none; }
+}
+
+/* video is decorative everywhere it appears — high-contrast users get none */
+@media (forced-colors: active) {
+  .story-video, .cta-ambient__video { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .story { height: 340vh; view-timeline-name: --story; }
+    .story-stage {
+      position: sticky; top: 0;
+      height: 100vh;
+      height: 100svh;
+      display: grid; place-items: center;
+      overflow: hidden;
+      text-align: center;
+    }
+    .beat {
+      grid-area: 1 / 1;
+      width: min(88vw, 780px); /* explicit width: grid min-content sizing would squeeze to one word per line */
+      margin-inline: auto;
+      opacity: 0;
+      animation: beat-cycle linear both;
+      animation-timeline: --story;
+    }
+    .beat--1 { animation-range: contain 2% contain 30%; }
+    .beat--2 { animation-range: contain 30% contain 58%; }
+    .beat--3 { animation-range: contain 58% contain 90%; }
+    /* the chatbox: grows across the whole scene, behind the text */
+    .story-bubble {
+      grid-area: 1 / 1;
+      width: 34vmin; height: 34vmin;
+      border-radius: 50% 50% 50% 12%;
+      background: var(--c-accent);
+      opacity: 0.16;
+      animation: bubble-grow linear both;
+      animation-timeline: --story;
+      animation-range: contain 0% contain 100%;
+    }
+  }
+  @supports not (animation-timeline: view()) {
+    .story { padding-block: var(--s-9); }
+    .story-stage { display: flex; flex-direction: column; gap: var(--s-8); text-align: center; padding-inline: var(--s-4); }
+    .beat { max-width: 21ch; margin-inline: auto; }
+    .story-bubble { display: none; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story { padding-block: var(--s-9); }
+  .story-stage { display: flex; flex-direction: column; gap: var(--s-8); text-align: center; padding-inline: var(--s-4); }
+  .beat { max-width: 21ch; margin-inline: auto; }
+  .story-bubble { display: none; }
+}
+@keyframes beat-cycle {
+  0% { opacity: 0; translate: 0 40px; scale: 0.95; }
+  14% { opacity: 1; translate: 0 0; scale: 1; }
+  86% { opacity: 1; translate: 0 0; scale: 1; }
+  100% { opacity: 0; translate: 0 -40px; scale: 0.97; }
+}
+@keyframes bubble-grow {
+  to { scale: 3.2; rotate: 14deg; opacity: 0.3; }
+}
+/* --- fly-in entrances: VISIBLE, from the sides, with spring --- */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .fly-l, .fly-r, .fly-up {
+      animation-timing-function: var(--ease-apple-spring);
+      animation-fill-mode: both;
+      animation-duration: auto;
+    }
+    .fly-l { animation-name: fly-in-left; animation-timeline: view(); animation-range: entry 0% cover 38%; }
+    .fly-r { animation-name: fly-in-right; animation-timeline: view(); animation-range: entry 0% cover 38%; }
+    .fly-up { animation-name: fly-in-up; animation-timeline: view(); animation-range: entry 0% cover 34%; }
+  }
+  @supports not (animation-timeline: view()) {
+    html.js .fly-l, html.js .fly-r, html.js .fly-up { opacity: 0; }
+    html.js .fly-l.in-view { animation: fly-in-left 0.9s var(--ease-apple-spring) both; }
+    html.js .fly-r.in-view { animation: fly-in-right 0.9s var(--ease-apple-spring) both; }
+    html.js .fly-up.in-view { animation: fly-in-up 0.8s var(--ease-apple-spring) both; }
+  }
+}
+/* fly keyframes animate `transform` ON PURPOSE: hover effects use the
+   independent translate/rotate properties, and the two must never collide
+   (a both-fill animation on the same property would kill hover forever) */
+@keyframes fly-in-left {
+  from { opacity: 0; transform: translate(-110px, 30px) rotate(-4deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fly-in-right {
+  from { opacity: 0; transform: translate(110px, 30px) rotate(4deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fly-in-up {
+  from { opacity: 0; transform: translate(0, 90px) scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* --- counting stats --- */
+@property --n { syntax: "<integer>"; initial-value: 0; inherits: false; }
+.count { font-variant-numeric: tabular-nums; }
+/* html.counters-ok is stamped by a JS runtime probe (ui.js) — @supports alone
+   cannot prove var() reification inside counter-reset, and a false positive
+   would display a permanent "0". The three layers (data-to / .count-real /
+   .vh sibling) must always change together. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) and (counter-set: c 1) {
+    html.counters-ok .count[data-to] { counter-reset: n var(--n); }
+    html.counters-ok .count[data-to]::before { content: counter(n); }
+    html.counters-ok .count[data-to] .count-real { display: none; }
+    html.counters-ok .count[data-to="75"] { animation: count-75 linear both; animation-timeline: view(); animation-range: entry 20% cover 55%; }
+    html.counters-ok .count[data-to="3"]  { animation: count-3 linear both;  animation-timeline: view(); animation-range: entry 20% cover 55%; }
+    html.counters-ok .count[data-to="2"]  { animation: count-2 linear both;  animation-timeline: view(); animation-range: entry 20% cover 55%; }
+  }
+}
+@keyframes count-75 { from { --n: 0; } to { --n: 75; } }
+@keyframes count-3  { from { --n: 0; } to { --n: 3; } }
+@keyframes count-2  { from { --n: 0; } to { --n: 2; } }
+
+/* --- scrubbed product demo: the adult page assembles as you scroll --- */
+.demo { position: relative; }
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .demo { height: 320vh; view-timeline-name: --demo; }
+    .demo-stage {
+      position: sticky; top: 0;
+      height: 100vh;
+      height: 100svh; /* small-viewport units: mobile URL bars must not clip the mock */
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      align-items: center;
+      gap: var(--s-6);
+      max-width: var(--w-wide);
+      margin-inline: auto;
+      padding-inline: var(--s-4);
+      overflow: hidden;
+    }
+    /* grid-stacked like the story beats: absolute children can't size the box,
+       which overflowed on mobile */
+    .demo-beats { display: grid; align-items: center; }
+    .demo-beat {
+      grid-area: 1 / 1;
+      display: flex; flex-direction: column; justify-content: center;
+      opacity: 0;
+      animation: beat-cycle linear both;
+      animation-timeline: --demo;
+    }
+    .demo-beat--1 { animation-range: contain 2% contain 34%; }
+    .demo-beat--2 { animation-range: contain 34% contain 64%; }
+    .demo-beat--3 { animation-range: contain 64% contain 95%; }
+    .demo-card--1 { animation: demo-pop linear both; animation-timeline: --demo; animation-range: contain 8% contain 22%; }
+    .demo-card--2 { animation: demo-pop linear both; animation-timeline: --demo; animation-range: contain 38% contain 52%; }
+    .demo-card--3 { animation: demo-pop linear both; animation-timeline: --demo; animation-range: contain 66% contain 80%; }
+  }
+  @supports not (animation-timeline: view()) {
+    .demo-stage { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-6); align-items: center; max-width: var(--w-wide); margin-inline: auto; padding: var(--s-9) var(--s-4); }
+    .demo-beats { display: flex; flex-direction: column; gap: var(--s-6); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-stage { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-6); align-items: center; max-width: var(--w-wide); margin-inline: auto; padding: var(--s-9) var(--s-4); }
+  .demo-beats { display: flex; flex-direction: column; gap: var(--s-6); }
+}
+@media (max-width: 900px) {
+  .demo-stage { grid-template-columns: 1fr; }
+}
+@keyframes demo-pop {
+  from { opacity: 0; translate: 0 34px; scale: 0.92; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+/* the browser-frame mockup — a tilted sticker screen */
+.mock {
+  background: var(--c-bg-page);
+  border-radius: var(--r-card);
+  box-shadow: var(--pop-lg);
+  overflow: hidden;
+  border: 2px solid var(--ink-line);
+  rotate: 1.6deg;
+}
+.mock__bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 16px;
+  background: var(--c-surface);
+  border-bottom: 2px solid var(--ink-line);
+}
+.mock__dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink-line); }
+.mock__dot--1 { background: var(--lv3); }
+.mock__dot--2 { background: var(--lv2); }
+.mock__dot--3 { background: var(--lv1); }
+.mock__url {
+  flex: 1;
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--c-text-2);
+  background: var(--c-bg-page);
+  border-radius: 8px;
+  padding: 4px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mock__body { padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
+.mock .request-card { font-size: 16px; }
+/* short phones: shrink the mock so all three request cards stay uncut */
+@media (max-height: 700px) {
+  .mock__body { padding: var(--s-3); gap: var(--s-2); }
+  .mock .request-card { font-size: 14px; padding: var(--s-3) var(--s-4); }
+  .mock__title { font-size: var(--t-body); }
+}
+.mock__title { font-weight: 700; font-size: var(--t-body-lg); line-height: 1.3; }
+.mock__sub { color: var(--c-text-2); font-size: var(--t-body-sm); line-height: 1.5; margin-bottom: var(--s-2); }
+
+/* (the old blob field was removed with the film hero — the film IS the ambience) */
+
+/* ============================================================
+   The path — an SVG dotted line that draws itself on scroll,
+   walking the visitor down the three levels.
+   ============================================================ */
+.path-wrap { position: relative; }
+.level-path {
+  position: absolute;
+  left: 50%;
+  top: -40px;
+  transform: translateX(-50%);
+  height: calc(100% + 60px);
+  width: 120px;
+  pointer-events: none;
+  z-index: 0;
+}
+.level-path path {
+  fill: none;
+  stroke: var(--c-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1 14;
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    /* the dotted path draws in as you scroll: a clip window opens top-to-bottom */
+    .level-path {
+      clip-path: inset(0 0 100% 0);
+      animation: path-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 85%;
+    }
+  }
+}
+@keyframes path-reveal { to { clip-path: inset(0 0 0% 0); } }
+.section--dense { padding-block: var(--s-8); }
+.section + .section { border-top: 1px solid var(--c-hairline); }
+.section--tint + .section { border-top: none; } /* after the generic rule: source order wins the tie */
+.section--seamless { border-top: none !important; }
+
+@media (max-width: 640px) {
+  .section { padding-block: var(--s-8); }
+  .section--hero { padding-block: var(--s-9) var(--s-8); }
+}
+
+/* --- buttons: chunky pills with a physical press (the underside edge
+   compresses as you push down — playful AND tactile) --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 14px 28px;
+  font-family: var(--font-display);
+  font-size: var(--t-body);
+  font-weight: 700;
+  line-height: 1.3;
+  border-radius: var(--r-pill);
+  border: none;
+  text-decoration: none;
+  transition: background 0.2s var(--ease-apple-standard),
+              color 0.2s var(--ease-apple-standard),
+              transform 0.2s var(--ease-apple-spring),
+              box-shadow 0.2s var(--ease-apple-spring);
+}
+.btn:hover { text-decoration: none; }
+
+.btn--primary {
+  background: var(--c-btn-bg);
+  color: var(--c-btn-ink);
+  box-shadow: 0 5px 0 var(--btn-edge);
+}
+.btn--primary:hover { background: var(--c-btn-bg-h); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--primary:hover { transform: translateY(-2px); box-shadow: 0 7px 0 var(--btn-edge); }
+  .btn--primary:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--btn-edge); }
+}
+
+.btn--secondary {
+  background: var(--c-bg-page);
+  color: var(--c-text);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 4px 0 var(--ink-line);
+}
+.btn--secondary:hover { background: var(--c-surface); }
+@media (prefers-reduced-motion: no-preference) {
+  .btn--secondary:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--ink-line); }
+  .btn--secondary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink-line); }
+  .btn--ghost:active, .btn--quiet:active { transform: scale(0.96); }
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--c-accent-deep); /* deep, not bright: body-size text needs 4.5:1 on cream */
+  font-weight: 600;
+  padding-inline: var(--s-3);
+}
+.btn--ghost:hover { background: var(--c-accent-soft); color: var(--c-accent-deep); }
+
+.btn--quiet {
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: var(--t-body-sm);
+  padding: 8px 14px;
+}
+.btn--quiet:hover { color: var(--c-text); background: var(--c-surface); }
+
+.btn--lg { padding: 16px 32px; font-size: var(--t-body-lg); }
+
+/* --- soft cards (class name kept for HTML stability) --- */
+.lg {
+  position: relative;
+  background: var(--c-bg-page);
+  border: none;
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+/* --- nav: warm, softly translucent --- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--c-hairline);
+  transition: background 0.3s var(--ease-apple-standard), box-shadow 0.3s var(--ease-apple-standard);
+}
+.nav.scrolled { background: var(--nav-bg-scrolled); box-shadow: 0 4px 20px rgba(51, 38, 30, 0.06); }
+@supports not (backdrop-filter: blur(1px)) {
+  .nav { background: var(--c-bg); }
+}
+.nav__inner {
+  max-width: var(--w-wide);
+  margin-inline: auto;
+  padding: 0 var(--s-4);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--t-body);
+  letter-spacing: -0.01em;
+  color: var(--c-text);
+  line-height: 1.3;
+}
+.nav__brand { text-decoration: none; }
+.nav__brand:hover { text-decoration: none; }
+.nav__mark { width: 22px; height: 22px; color: var(--c-accent); flex: 0 0 auto; }
+
+/* the nav CTA: a mini press-button, always one click from starting.
+   .nav__links a (0,1,1) outguns .btn--primary (0,1,0) — restate the ink */
+.nav__cta {
+  padding: 7px 18px;
+  font-size: var(--t-body-sm);
+  box-shadow: 0 3px 0 var(--btn-edge);
+}
+.nav__links a.nav__cta { color: var(--c-btn-ink); }
+.nav__links a.nav__cta:hover { color: var(--c-btn-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .nav__cta:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--btn-edge); }
+  .nav__cta:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-edge); }
+}
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-left: auto;
+}
+.nav__links a {
+  color: var(--c-text-2);
+  font-size: var(--t-body-sm);
+  line-height: 1.5;
+  text-decoration: none;
+  transition: color 0.2s var(--ease-apple-standard);
+}
+.nav__links a:hover { color: var(--c-text); text-decoration: none; }
+.nav__links a[aria-current="page"] { color: var(--c-text); font-weight: 500; }
+/* crisis is never far away, even on a 12,000px scrollytelling page */
+.nav__links a.nav__crisis {
+  color: var(--c-crisis-edge);
+  font-weight: 600;
+  background: var(--c-crisis-bg);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+}
+.nav__links a.nav__crisis:hover { color: var(--c-crisis-edge); }
+
+/* theme toggle */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--c-divider);
+  background: transparent;
+  color: var(--c-text-2);
+  transition: background 0.25s var(--ease-apple-standard), color 0.25s var(--ease-apple-standard);
+}
+.theme-toggle:hover { background: var(--c-surface); color: var(--c-text); }
+.theme-toggle svg { width: 16px; height: 16px; }
+:root:not([data-theme="dark"]) .theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+/* In system-dark (no explicit choice) the moon shows; acceptable default */
+
+/* motion toggle shows the ACTION it will take: pause while running, play while paused */
+html:not(.motion-off) .motion-toggle .icon-play { display: none; }
+html.motion-off .motion-toggle .icon-pause { display: none; }
+html.motion-off .motion-toggle { background: var(--c-accent-soft); color: var(--c-accent-deep); }
+/* both toggles are JS-only controls — dead buttons must not render without JS */
+html:not(.js) .theme-toggle { display: none; }
+
+/* --- crisis strip --- */
+.crisis {
+  background: var(--c-crisis-bg);
+  border-top: 1px solid var(--c-hairline);
+}
+.crisis__inner {
+  max-width: var(--w-content);
+  margin-inline: auto;
+  padding: var(--s-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-4);
+  font-size: var(--t-body-sm);
+  line-height: 1.5;
+}
+.crisis__label {
+  font-weight: 600;
+  color: var(--c-crisis-edge);
+}
+.crisis__inner a {
+  color: var(--c-text);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--c-divider);
+}
+.crisis__inner a:hover { text-decoration-color: currentColor; }
+
+/* --- footer (utility pages) --- */
+.footer {
+  border-top: 1px solid var(--c-hairline);
+  padding: var(--s-6) 0 var(--s-7);
+  font-size: var(--t-body-sm);
+  color: var(--c-text-3);
+  line-height: 1.6;
+}
+.footer .container { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); }
+.footer a { color: var(--c-text-2); }
+
+/* --- big footer (landing): committed-dark bookend with a giant wordmark,
+   the night-time twin of the story scene. Fixed literals, both themes. --- */
+.footer--big {
+  background: #221a12;
+  color: #c4b5a8;
+  border-top: none;
+  padding: var(--s-8) 0 var(--s-6);
+}
+.footer--big .container { display: block; }
+.footer__word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(52px, 10.5vw, 150px);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #f7f1ea;
+  margin: 0 0 var(--s-6);
+  text-wrap: balance;
+}
+.footer__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3) var(--s-6);
+  border-top: 1px solid rgba(247, 241, 234, 0.16);
+  padding-top: var(--s-5);
+}
+.footer--big a { color: #e5d8c9; }
+/* committed-dark ground: the light-theme rust ring would sit ~2.5:1 on
+   #221a12 and fail 1.4.11 — warm cream clears it in both themes */
+.footer--big :focus-visible { outline-color: #f7f1ea; }
+.footer__links { display: flex; flex-wrap: wrap; gap: var(--s-4); }
+.footer__legal { flex-basis: 100%; color: #ab9a8a; }
+
+/* --- scroll flight: a paper plane rides a dotted rail down the page edge,
+   tracking how far you've travelled (decor; the message-in-transit motif) --- */
+.flight { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    @media (min-width: 1100px) {
+      .flight {
+        display: block;
+        position: fixed;
+        top: 0;
+        right: 26px;
+        height: 100%;
+        width: 2px;
+        z-index: 40;
+        pointer-events: none;
+        background: repeating-linear-gradient(180deg, var(--c-border-strong) 0 5px, transparent 5px 13px);
+        opacity: 0.55;
+      }
+      .flight__plane {
+        position: absolute;
+        top: 9%; /* base: even an inert timeline leaves the plane visible below the nav */
+        left: 50%;
+        translate: -50% 0;
+        width: 26px;
+        height: 26px;
+        padding: 3px;
+        border-radius: 50%;
+        background: var(--c-bg);
+        color: var(--c-accent);
+        rotate: 135deg; /* the glyph points up-right; aim it down the rail */
+        animation: flight-progress linear both;
+        animation-timeline: scroll(root);
+      }
+      @keyframes flight-progress {
+        from { top: 9%; } /* below the sticky nav, which sits above the rail */
+        to   { top: 95%; }
+      }
+    }
+  }
+}
+
+/* --- hairline divider --- */
+.hairline { border: none; border-top: 1px solid var(--c-hairline); margin: 0; }
+
+/* --- visually hidden (for SR-only text) --- */
+.vh {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================
+   Motion — native scroll-driven with IO fallback
+   Default state is FINAL (visible): degradation-safe.
+   ============================================================ */
+.reveal { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 8% cover 32%;
+    }
+    .reveal--slow  { animation-range: entry 5% cover 45%; }
+    .reveal--s1 { animation-range: entry 5%  cover 27%; }
+    .reveal--s2 { animation-range: entry 14% cover 36%; }
+    .reveal--s3 { animation-range: entry 23% cover 45%; }
+  }
+
+  @supports not (animation-timeline: view()) {
+    /* html.js is stamped by the pre-paint script — no-JS users skip the
+       hidden state entirely and see final content (plan: landing works
+       without JS) */
+    html.js .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.9s var(--ease-apple-out), transform 0.9s var(--ease-apple-out);
+    }
+    html.js .reveal.in-view { opacity: 1; transform: none; }
+    html.js .reveal--s2 { transition-delay: 0.12s; }
+    html.js .reveal--s3 { transition-delay: 0.24s; }
+  }
+}
+
+@keyframes reveal-rise {
+  from { opacity: 0; transform: translateY(36px) scale(0.96) rotate(-0.6deg); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+/* view transitions between app steps (js-driven) */
+@media (prefers-reduced-motion: no-preference) {
+  .step-enter {
+    animation: step-in 0.62s var(--ease-apple-out) both;
+  }
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}

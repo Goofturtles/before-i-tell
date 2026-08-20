@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- speech bubble on warm paper; inset enough to survive maskable crops -->
+  <rect width="64" height="64" rx="14" fill="#fdf9f3"/>
+  <rect x="10" y="14" width="44" height="31" rx="11" fill="#c2410c"/>
+  <path d="M22 44 L22 53 L32 44 Z" fill="#c2410c"/>
+  <circle cx="24" cy="29.5" r="3.4" fill="#ffffff"/>
+  <circle cx="40" cy="29.5" r="3.4" fill="#ffffff" opacity=".55"/>
+</svg>

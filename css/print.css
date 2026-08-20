@@ -1,0 +1,76 @@
+/* ============================================================
+   Before I Tell — print stylesheet (adult.html briefing)
+   Forces light, strips chrome, keeps every request card intact.
+   The page's own JS strips the #t= hash before window.print()
+   so the payload never appears in the browser's printed header.
+   ============================================================ */
+
+@media print {
+  /* the :root:not([data-theme="light"]) arm out-specifies bare :root, so
+     system-dark users with no explicit choice also print light */
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --c-bg: #ffffff;
+    --c-bg-page: #ffffff;
+    --c-surface: #f2f2f4;
+    --c-surface-2: #e8e8ea;
+    --c-text: #111113;
+    --c-text-2: #444448;
+    --c-text-3: #66666a;
+    --c-divider: rgba(0, 0, 0, 0.22);
+    --c-hairline: rgba(0, 0, 0, 0.14);
+    --c-accent: #c2410c;
+    --c-accent-deep: #c2410c;   /* dark-theme users print readable eyebrows */
+    --c-accent-soft: #fdeee6;
+    --c-safe: #1d7a46;
+    --c-crisis-bg: #f7f7f9;
+    --c-crisis-edge: #8c1d16;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111113 !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* no decor on paper: scroll path, marquee, hero film card, sparks, doodles, flight rail */
+  .level-path, .marquee, .hero-media, .hero-spark, .hero-hint,
+  .flight, .doodle-arrow, .u-scrib svg, .footer__word { display: none !important; }
+
+  /* strip interactive chrome */
+  .nav,
+  .skip-link,
+  .theme-toggle,
+  .btn-row,
+  .link-box,
+  .no-print,
+  .footer { display: none !important; }
+
+  /* flatten cards */
+  .lg, .takeover__panel {
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.22) !important;
+  }
+
+  .app-view, .brief-wrap {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .brief-section { break-inside: avoid; margin-bottom: 18pt; }
+  .request-card {
+    break-inside: avoid;
+    background: #fdeee6 !important;
+    border-left: 3pt solid #c2410c !important;
+  }
+  .brief-steps li { break-inside: avoid; }
+  .hard-case { break-inside: avoid; background: #f2f2f4 !important; }
+
+  /* crisis numbers stay — they are part of the briefing */
+  .crisis { background: #f7f7f9 !important; }
+
+  /* links: show no URLs; the text is what matters on paper */
+  a { color: #111113 !important; text-decoration: none !important; }
+  .cite-chip { border: 1px solid rgba(0,0,0,0.22) !important; }
+}

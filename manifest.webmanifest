@@ -1,0 +1,14 @@
+{
+  "name": "Before I Tell",
+  "short_name": "Before I Tell",
+  "description": "Know what happens before you say it — prepares a young person to tell a school adult something hard, and prepares the adult to hear it well.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "minimal-ui",
+  "background_color": "#fdf9f3",
+  "theme_color": "#c2410c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
