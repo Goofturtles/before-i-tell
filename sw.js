@@ -92,7 +92,10 @@ self.addEventListener("fetch", (e) => {
         })
         .catch(() => hit); // offline and uncached: let the request fail honestly
       // keep the worker alive until the background refresh lands in cache —
-      // otherwise deploys can take extra visits to propagate
+      // otherwise deploys can take extra visits to propagate. NOT redundant:
+      // this synchronous registration is also the pendency anchor that makes
+      // the async waitUntil around cache.put above spec-legal (an event must
+      // hold a pending extend-lifetime promise for later waitUntil calls).
       e.waitUntil(refresh.then(() => {}, () => {}));
       return hit || refresh;
     })
