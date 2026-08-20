@@ -12,7 +12,7 @@
 import { el, clearNode, copyText } from "./ui.js";
 import { store } from "./store.js";
 import { safety } from "./safety.js";
-import { relayPost, RELAY_ENABLED } from "./config.js";
+import { relayPost, warmRelay, RELAY_ENABLED } from "./config.js";
 
 const REFUSALS = {
   personal: "That's a personal email address. Level 2 only writes to school accounts — that rule is what stops this from becoming a way to send anonymous messages to anyone. Use your counsellor's school address.",
@@ -102,6 +102,7 @@ function renderIntro() {
 }
 
 function renderCompose() {
+  warmRelay(); // overlap the free-tier cold start with the student's typing
   clearNode(mount);
   const status = statusRegion();
 
@@ -212,6 +213,7 @@ function renderCreated(res) {
 }
 
 function renderResume(saved) {
+  warmRelay(); // overlap the free-tier cold start with passphrase entry
   clearNode(mount);
   const status = statusRegion();
   const nameInput = el("input", { type: "text", id: "cn-name", value: saved.codename || "", placeholder: "Blue Heron 41" });
