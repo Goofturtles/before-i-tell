@@ -276,6 +276,15 @@ ok("still accepts a real board", checkRecipient("x@tvdsb.ca").ok === true);
 // must require .on.ca or "myevildsb.ca" is a free remailer
 ok("rejects registrable bare-.ca lookalike (dsb)", checkRecipient("x@myevildsb.ca").ok === false);
 ok("rejects registrable bare-.ca lookalike (cdsb)", checkRecipient("x@harassmentcdsb.ca").ok === false);
+
+// demo allowlist: exact operator-set addresses only, never domains
+process.env.BIT_DEMO_RECIPIENTS = "demo.person@gmail.com, Second@Example.com";
+ok("demo address passes despite freemail deny", checkRecipient("demo.person@gmail.com").ok === true);
+ok("demo match is case-insensitive", checkRecipient("SECOND@example.com").ok === true);
+ok("demo result is flagged", checkRecipient("demo.person@gmail.com").demo === true);
+ok("sibling at the same freemail domain still refused", checkRecipient("other.person@gmail.com").reason === "personal");
+process.env.BIT_DEMO_RECIPIENTS = "";
+ok("empty allowlist restores the full gate", checkRecipient("demo.person@gmail.com").reason === "personal");
 for (const real of ["x@yrdsb.ca", "x@ddsb.ca", "x@ocdsb.ca", "x@ycdsb.ca", "x@amdsb.ca"])
   ok(`real bare-.ca board still accepted (exact set): ${real}`, checkRecipient(real).ok === true);
 

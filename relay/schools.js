@@ -92,6 +92,18 @@ export function checkRecipient(raw) {
   if (!email) return { ok: false, reason: "malformed" };
   const domain = domainOf(email);
 
+  /* Demo allowlist: EXACT addresses the operator sets in the environment
+     (BIT_DEMO_RECIPIENTS, comma-separated). Exists so the full send→reply
+     loop can be filmed/tested against an inbox the operator controls, and so
+     boards that hard-block outside senders don't block a judged demo.
+     Deliberately NOT a gate-widening: it matches whole addresses (never
+     domains), is empty unless the operator sets it, and is checked before
+     DENY only because demo inboxes are usually freemail. Read per-call so
+     tests and dashboard changes apply without a restart. */
+  const demo = String(process.env.BIT_DEMO_RECIPIENTS || "")
+    .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+  if (demo.includes(email)) return { ok: true, email, domain, demo: true };
+
   // subdomain-aware deny: mail.gmail.com must not sneak past an exact-match set
   const labels = domain.split(".");
   for (let i = 0; i < labels.length - 1; i++) {

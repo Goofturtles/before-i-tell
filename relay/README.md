@@ -110,6 +110,19 @@ rather than breaking.
 
 ---
 
+## Demo recipients & staying warm
+
+- `BIT_DEMO_RECIPIENTS` — comma-separated EXACT addresses (never domains) the
+  gate will accept in addition to school accounts. For filming the full
+  send→reply loop against an inbox the operator controls, and for boards whose
+  mail gateways block all outside senders. Empty by default; set it in the
+  Render dashboard. It deliberately cannot widen the gate beyond the listed
+  addresses.
+- `.github/workflows/keepalive.yml` pings `/health` every 10 minutes so the
+  free-tier instance never spins down (cold starts made every first send after
+  a quiet spell take up to a minute). Delete the workflow after judging if the
+  workspace's free instance-hours matter.
+
 ## API
 
 | Method | Path      | Body                                  | Notes |

@@ -33,6 +33,10 @@ async function getTransport() {
     port: 465,
     secure: true,
     auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+    // pooled: keep the TLS connection alive between sends — a fresh SMTP
+    // handshake per message added seconds to every "Sending…"
+    pool: true,
+    maxConnections: 1,
   });
   return transport;
 }
