@@ -2,6 +2,8 @@
 
 **Know what happens before you say it.**
 
+**Live: https://goofturtles.github.io/before-i-tell/**
+
 A website that prepares a young person to tell an adult at school something hard — and prepares the adult to receive it well.
 
 Built for **Hack for Humanity | Summer 2026** (theme: AI for mental/physical health). Interface: flat, high-contrast, Uber-Base-inspired — black & white foundation, heavy editorial type, light + dark themes.
@@ -14,9 +16,11 @@ Built for **Hack for Humanity | Summer 2026** (theme: AI for mental/physical hea
 
 Three levels, climbed at the user's own speed — every step up is a button only they press:
 
-- **L1 · Ask** — anonymous Q&A about exactly what a school adult must report vs. what stays confidential in Ontario. Answers are *retrieved from a fixed, cited corpus* — never generated. Unknown questions get an honest "I don't know" plus a route to a human.
+- **L1 · Ask** — anonymous Q&A about exactly what a school adult must report vs. what stays confidential in Ontario. Answers are *retrieved from a fixed, cited corpus* (23 entries: reporting, confidentiality, coming out, bullying, being believed, "will I be taken away", how to even start…) — never generated. Unknown questions get an honest "I don't know" plus a route to a human.
 - **L2 · Codename** — talk to the school counsellor under a codename, revealing your name only when you choose. Honestly shown as a prototype: it needs a school partnership for the human on the other end.
-- **L3 · Tell, on your terms** — set the rules for the conversation (what's negotiable is entirely yours; what the law fixes is shown honestly and locked), optionally build your words from your own text, and generate an **adult briefing page**: how to listen, plus your specific requests. The disclosure itself is never in the link — it stays yours until you say it out loud.
+- **L3 · Tell, on your terms** — set the rules for the conversation (what's negotiable is entirely yours; what the law fixes is shown honestly and locked), optionally build your words from your own text, **practice saying them out loud** on a full-screen rehearsal card, and generate an **adult briefing page**: how to listen, plus your specific requests. The disclosure itself is never in the link — it stays yours until you say it out loud.
+
+**Offline as proof.** After the first visit a service worker keeps the whole site on-device: Levels 1 and 3 run in airplane mode. That's the checkable form of "nothing you type leaves your device" — a tool that needed a server couldn't do it.
 
 ## Safety architecture
 
@@ -45,13 +49,15 @@ Jurisdiction: **Ontario**. The listening guidance is universal; reporting rules 
 
 ## Run it
 
-No build step. ES modules require an HTTP server (file:// won't work):
+The site is live at **https://goofturtles.github.io/before-i-tell/** (GitHub Pages, static hosting, `.nojekyll`). On the hosted site, Level 2 shows its honest preview until a relay is deployed — see `relay/README.md`, then paste the relay origin into `PROD_RELAY` in `js/config.js`.
+
+Locally: no build step. ES modules require an HTTP server (file:// won't work):
 
 ```bash
 python -m http.server 3487 -d before-i-tell
 ```
 
-Then open http://localhost:3487/. Deploys as-is to GitHub Pages (add `.nojekyll`).
+Then open http://localhost:3487/. Dev note: the service worker serves cache-first, so after editing a file the first reload can be one version behind (the refresh lands in the background); reload twice, or unregister the SW in DevTools while iterating.
 
 ## Structure
 
@@ -72,8 +78,10 @@ js/ask.js          L1 screen
 js/terms.js        terms catalog (student + adult copy, append-only ids)
 js/scaffold.js     words scaffold (pure template join)
 js/link.js         fragment encode/decode, versioned, enum-validated
-js/app.js          routes + screens
+js/app.js          routes + screens + practice mode (rehearsal dialog)
 js/adult.js        briefing renderer + hash-stripping print
+sw.js              offline shell (same-origin only; never caches user input)
+manifest.webmanifest + icon.svg — installable, minimal-ui
 media/             generated video: story-scrub.mp4 (all-intra H.264 for
                    bidirectional scroll-scrubbing), warm-loop.mp4, posters
 ```
