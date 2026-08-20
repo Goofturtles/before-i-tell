@@ -10,7 +10,7 @@
    After a deploy, a page may render one visit stale and be current the next —
    the honest trade for working offline. Bump VERSION to force a clean sweep. */
 
-const VERSION = "bit-v1";
+const VERSION = "bit-v2";
 
 const SHELL = [
   "./",
@@ -79,7 +79,10 @@ self.addEventListener("fetch", (e) => {
           // response would poison the cache for offline use)
           if (res.ok && res.status === 200 && res.type === "basic") {
             const copy = res.clone();
-            caches.open(VERSION).then((cache) => cache.put(e.request, copy)).catch(() => { /* quota: serve live, skip cache */ });
+            // key by pathname only — putting the full ?fbclid=… URL while
+            // matching with ignoreSearch lets an old variant shadow every
+            // later refresh (Cache entries match in insertion order)
+            caches.open(VERSION).then((cache) => cache.put(url.origin + url.pathname, copy)).catch(() => { /* quota: serve live, skip cache */ });
           }
           return res;
         })
