@@ -165,7 +165,7 @@ ok("per-IP send limit engages", limited);
 // authfail gate on the scrypt oracle: failures charge, success doesn't,
 // the 31st guess goes quiet, and a cleared window lets the right pass in
 _resetRates();
-const at = await post("/send", { to: "counsellor@tdsb.on.ca", message: "auth gate probe" });
+const at = await post("/send", { to: "authgate@yrdsb.ca", message: "auth gate probe" });
 ok("auth-gate thread created", at.json.ok === true, JSON.stringify(at.json));
 for (let i = 0; i < 30; i++) await post("/send", { tag: at.json.tag, pass: "wrong-pass", message: "x" });
 const gated = await post("/send", { tag: at.json.tag, pass: "wrong-pass", message: "x" });
