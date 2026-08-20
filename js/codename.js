@@ -71,6 +71,36 @@ function refusalNote(status, reason) {
   status.append(note(REFUSALS[reason] || "Something went wrong. Nothing was sent."));
 }
 
+/* The email template, mirrored from relay/mailer.js bodyText(first) — kept in
+   sync BY HAND, like the safety mirror. The preview must show the student the
+   EXACT email, because "know what happens before you say it" applies to the
+   send button too: informed consent includes seeing what lands in the inbox. */
+function emailPreview(message) {
+  const codename = "(your codename — picked when you send)";
+  return `Subject: [Before I Tell] A student wants to talk — ${codename}
+
+A student at your school is using Before I Tell — a tool that lets a young person start a conversation with a school adult under a codename instead of their name, because not knowing what happens after telling is one of the top reasons students stay silent.
+
+They have chosen to write to you. They are identified only as "${codename}". Nobody — including the people who built this — can see who they are.
+
+────────────────────────────────────────
+${message || "(your message appears here)"}
+────────────────────────────────────────
+
+HOW TO REPLY
+Just hit Reply. Your reply goes back to ${codename} inside the app — it does not reveal your email to them, and it does not reveal them to you.
+
+IMPORTANT
+· This is not a monitored crisis service, and nobody reads these messages but you. If you believe this student is in immediate danger and you cannot identify them, contact your school's admin team and Kids Help Phone (1-800-668-6868).
+· We screen outgoing messages for explicit crisis language and route those students to crisis lines instead of to your inbox. That screening is pattern-based and imperfect — please do not assume a message reached you because it was judged safe. Read it as you would any disclosure.
+· Your Ontario duty to report is unchanged. If what you read gives reasonable grounds to suspect abuse or neglect of someone under 16, you must contact a children's aid society directly — and you should say so plainly in your reply.
+
+Not expecting this, or don't want messages here?
+Block this address permanently: (a one-click link)
+
+— Before I Tell · built by a student, for students`;
+}
+
 /** During a cold start the free-tier relay can take up to a minute to wake —
     without a note, "Sending…" for 30s reads as broken. */
 function slowNote(status) {
@@ -153,6 +183,16 @@ function renderCompose() {
   });
   safety.guard(msgInput);
 
+  // the site's whole thesis, applied to its own send button: see the exact
+  // email — word for word — before deciding to send it
+  const previewBody = el("pre", { class: "mail-preview" }, emailPreview(""));
+  msgInput.addEventListener("input", () => { previewBody.textContent = emailPreview(msgInput.value.trim()); });
+  const previewBox = el("details", { class: "mail-details" },
+    el("summary", {}, "See the exact email they'll receive"),
+    el("p", { class: "small muted", style: "margin:8px 0" },
+      "Word for word — it updates as you type. Nothing is sent until you press Send."),
+    previewBody);
+
   const sendBtn = el("button", { class: "btn btn--primary btn--lg", type: "button" }, "Send it");
 
   sendBtn.addEventListener("click", async () => {
@@ -198,6 +238,7 @@ function renderCompose() {
     el("div", { class: "slot" },
       el("label", { for: "cn-msg" }, "Your message"),
       msgInput),
+    previewBox,
     status,
     el("div", { class: "btn-row" },
       sendBtn,

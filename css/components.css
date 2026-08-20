@@ -746,3 +746,34 @@
 @media (pointer: coarse) {
   .topic-chip { padding-top: 11px; padding-bottom: 11px; }
 }
+
+/* ---- exact-email preview on the L2 compose screen ---- */
+.mail-details { margin: var(--s-4) 0; }
+.mail-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: var(--s-3) var(--s-4);
+  border: 1.5px solid var(--c-border-strong);
+  border-radius: var(--r-input);
+  background: var(--c-surface);
+  line-height: 1.4;
+  list-style: none;
+}
+.mail-details summary::-webkit-details-marker { display: none; }
+.mail-details summary::before { content: "✉ "; }
+.mail-details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.mail-preview {
+  margin: 0;
+  padding: var(--s-4);
+  border: 1.5px solid var(--c-border-strong);
+  border-top: none;
+  border-radius: 0 0 var(--r-input) var(--r-input);
+  background: var(--c-bg-page);
+  font-family: var(--font-mono);
+  font-size: var(--t-body-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-height: 340px;
+  overflow-y: auto;
+}

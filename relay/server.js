@@ -166,11 +166,17 @@ async function handleSend(req, res, body) {
   const charges = [];
 
   if (body.tag) {
-    // continuing an existing thread
+    // continuing an existing thread. The authfail bucket gates the
+    // scrypt-backed passphrase oracle BEFORE it runs (check-then-charge must
+    // not make hammering it free); only failures are charged
+    const afKey = "authfail:" + ipKey(req);
+    if (wouldExceed(afKey, 30)) return json(res, 429, { ok: false, reason: "rate" });
     thread = store.getThread(String(body.tag));
     if (!thread || !(await store.verifyPass(thread, body.pass))) {
+      bump(afKey, 30, HOUR);
       return json(res, 403, { ok: false, reason: "auth" });
     }
+    if (store.isBlocked(thread.to)) return json(res, 403, { ok: false, reason: "blocked" });
     if (wouldExceed("thread:" + thread.tag, 20)) return json(res, 429, { ok: false, reason: "rate" });
     // per-RECIPIENT ceiling across every thread: without this, 6 new threads
     // × 20/hour was 120 messages an hour into one counsellor's inbox
@@ -203,7 +209,12 @@ async function handleSend(req, res, body) {
     pass = created.pass;
   }
 
-  if (store.isBlocked(thread.to)) return json(res, 403, { ok: false, reason: "blocked" });
+  // a block that landed during the await above: refuse AND drop the fresh
+  // thread (its passphrase was never issued — nobody could ever open it)
+  if (store.isBlocked(thread.to)) {
+    if (first) store.dropThread(thread.tag);
+    return json(res, 403, { ok: false, reason: "blocked" });
+  }
 
   const stored = store.addMessage(thread.tag, "student", message);
   try {
@@ -233,6 +244,8 @@ async function handleThread(req, res, body) {
   const key = ipKey(req);
   // 600/h: an entire venue's WiFi shares one key — see the send-cap note
   if (!bump("read:" + key, 600, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
+  // same scrypt-oracle gate as /send: repeated failed guesses go quiet
+  if (wouldExceed("authfail:" + key, 30)) return json(res, 429, { ok: false, reason: "rate" });
 
   const pass = String(body.pass || "");
   let thread = null;
@@ -248,7 +261,10 @@ async function handleThread(req, res, body) {
       if (await store.verifyPass(t, pass)) { thread = t; break; }
     }
   }
-  if (!thread) return json(res, 403, { ok: false, reason: "auth" });
+  if (!thread) {
+    bump("authfail:" + key, 30, HOUR);
+    return json(res, 403, { ok: false, reason: "auth" });
+  }
 
   return json(res, 200, {
     ok: true,

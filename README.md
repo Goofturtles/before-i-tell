@@ -6,6 +6,16 @@
 
 A website that prepares a young person to tell an adult at school something hard — and prepares the adult to receive it well.
 
+## The three-minute tour (for judges)
+
+1. **Ask it the scary question** — open [the app](https://goofturtles.github.io/before-i-tell/app.html#/ask) and type *"will you tell my parents"* or *"will I get taken away"*. Every answer cites the actual Ontario rule. Now type *"tell me a joke"* — it refuses rather than guesses, because a safety product must fail to "I don't know."
+2. **Trip the safety net** — type *"i want to end it all"*. The site stops being a website: a full-screen takeover routes to Kids Help Phone and 9-8-8, can't be escaped by Esc/back/refresh, and its honest note *branches* (a suicidal student is told the truth that this does **not** trigger children's aid; an abused student is told the truth that it does).
+3. **See radical transparency** — on Level 2's compose screen, open *"See the exact email they'll receive"*: the site shows students the full email, word for word, before they send. On Level 3, build your terms and watch the adult's briefing page carry your requests — never your story (it's not in the link; decode it yourself).
+4. **Prove the privacy claim** — turn on airplane mode and reload. Levels 1 and 3 still work entirely. A tool that sent your answers to a server couldn't do that.
+5. **The other half** — the [adult briefing page](https://goofturtles.github.io/before-i-tell/adult.html) teaches the receiving adult how to listen, including the hard case where they must report.
+
+Under the hood: zero external requests on Levels 1/3, a rule-based retrieval engine that refuses instead of hallucinating (committed regression suites: `test/retrieval.test.mjs`, `relay/test/relay.test.mjs` — 109 assertions), and a codename email relay on **Render** with crisis interception, school-address-only delivery, and spoof-resistant rate limiting.
+
 Built for **Hack for Humanity | Summer 2026** (theme: AI for mental/physical health). Interface: flat, high-contrast, Uber-Base-inspired — black & white foundation, heavy editorial type, light + dark themes.
 
 ## The problem

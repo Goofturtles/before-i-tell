@@ -56,6 +56,9 @@ const esc = (s) => String(s)
 /** strip anything that could forge a header; subjects are attacker-influenced */
 const headerSafe = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 180);
 
+/* COUPLING: the first-message text template is mirrored in
+   ../js/codename.js emailPreview() — the compose screen shows students the
+   EXACT email before they send. If you edit this copy, edit that too. */
 function bodyText({ codename, message, tag, first }) {
   const blockUrl = `${PUBLIC_URL}/block?tag=${tag}`;
   const intro = first
