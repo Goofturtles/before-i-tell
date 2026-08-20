@@ -44,9 +44,14 @@ export async function relayPost(path, payload, { timeoutMs = 45000 } = {}) {
       credentials: "omit",
       referrerPolicy: "no-referrer",
     });
-    // a gateway error (Render edge answering for a dead/waking instance) is
-    // as uncertain as a timeout — the request may have reached the app
-    if (!res.ok && res.status >= 502) return { ok: false, reason: "timeout" };
+    // The relay ITSELF answers 502 (delivery failed, rolled back) and 503
+    // (daily capacity) with honest reasons — trust a parseable body. Only an
+    // unparseable gateway page (Render edge fronting a dead/waking instance)
+    // is the truly-uncertain case that earns the hedged timeout copy.
+    if (!res.ok && res.status >= 502) {
+      const body = await res.json().catch(() => null);
+      return body && typeof body.reason === "string" ? body : { ok: false, reason: "timeout" };
+    }
     return await res.json();
   } catch (err) {
     // a timeout is NOT "nothing was sent" — the request may have arrived and

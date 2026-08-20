@@ -21,7 +21,7 @@ const REFUSALS = {
   unknown: "That doesn't look like a school address. If your school's domain isn't recognized yet, Level 3 gets you a page you can hand the adult in person — no email needed.",
   malformed: "That doesn't look like an email address. Check it and try again.",
   blocked: "That address has asked not to receive messages from Before I Tell. Try another adult at your school, or use Level 3.",
-  rate: "This network has sent a lot of messages in the past hour — on school or event Wi-Fi, everyone counts together. Wait a bit, or switch to mobile data.",
+  rate: "A lot of messages in a short time — from this conversation, or from this network (on school or event Wi-Fi, everyone counts together). Wait a bit, or try mobile data.",
   rate_recipient: "That address has already received several messages today. Give it a day.",
   too_long: "That's longer than a first message needs to be. Trim it a bit.",
   empty: "Write something first.",
@@ -276,9 +276,12 @@ function renderResume(saved) {
     goBtn.disabled = true;
     goBtn.textContent = "Opening…"; // .btn--primary paints over UA disabled greying
     const slow = slowNote(status);
+    const typedName = nameInput.value.trim();
     const res = await relayPost("/thread", {
-      tag: saved.tag || undefined,
-      codename: nameInput.value.trim(),
+      // the saved tag only helps when they're opening the SAME conversation —
+      // with an edited codename it would shadow the lookup and falsely fail auth
+      tag: saved.tag && typedName === (saved.codename || "") ? saved.tag : undefined,
+      codename: typedName,
       pass: passInput.value.trim(),
     });
     clearTimeout(slow);
@@ -336,14 +339,18 @@ function renderThread(thread, pass) {
     const res = await relayPost("/send", { tag: thread.tag, pass, message });
     clearTimeout(slow);
     clearNode(status);
-    replyBtn.disabled = false;
-    replyBtn.textContent = "Send reply";
     if (res.ok) {
+      // stay disabled until the refresh lands — the text is still in the box,
+      // and a re-enabled button here is a double-send window
       openThread(thread.tag, pass, () => {
+        replyBtn.disabled = false;
+        replyBtn.textContent = "Send reply";
         status.append(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment."));
       });
       return;
     }
+    replyBtn.disabled = false;
+    replyBtn.textContent = "Send reply";
     if (res.reason === "crisis") { crisisFork(status, { fam: res.fam }); return; }
     status.append(note(REFUSALS[res.reason] || "Couldn't send that."));
   });

@@ -57,6 +57,15 @@ function bump(key, limit, windowMs) {
   return true;
 }
 
+/** check WITHOUT charging — /send verifies every limit first, then charges
+    them all at once, so a refusal on limit #3 can't have burned limits #1-2
+    (six refused retries used to exhaust a recipient's daily budget with
+    zero messages delivered) */
+function wouldExceed(key, limit) {
+  const rec = hits.get(key);
+  return Boolean(rec && Date.now() <= rec.reset && rec.n >= limit);
+}
+
 /* X-Forwarded-For: each trusted proxy APPENDS the address it accepted the
    connection from, so the only entries a client cannot forge are the LAST
    n, where n = trusted hops in front of this process. Taking [0] (the
@@ -146,7 +155,15 @@ async function handleSend(req, res, body) {
     return json(res, 200, { ok: false, reason: "crisis", fam: risk.fam });
   }
 
-  let thread, pass = null, first = false;
+  /* Rate limiting is CHECK-then-CHARGE: every limit is verified before any
+     is incremented and before any thread exists, so a refusal can't orphan
+     a passphrase-less thread or burn budgets for a message that never sent.
+     Budgets (all charged only after full validation):
+       thread:  20/h per conversation      to:     6/day new threads per recipient
+       inbox:   30/day per recipient        send:  120/h per IP (venue WiFi = one IP)
+       global: 400/day (under Gmail's ~500) */
+  let thread, pass = null, first = false, newTo = null;
+  const charges = [];
 
   if (body.tag) {
     // continuing an existing thread
@@ -154,35 +171,39 @@ async function handleSend(req, res, body) {
     if (!thread || !(await store.verifyPass(thread, body.pass))) {
       return json(res, 403, { ok: false, reason: "auth" });
     }
-    if (!bump("thread:" + thread.tag, 20, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
+    if (wouldExceed("thread:" + thread.tag, 20)) return json(res, 429, { ok: false, reason: "rate" });
     // per-RECIPIENT ceiling across every thread: without this, 6 new threads
     // × 20/hour was 120 messages an hour into one counsellor's inbox
-    if (!bump("inbox:" + thread.to, 30, 24 * HOUR)) return json(res, 429, { ok: false, reason: "rate_recipient" });
+    if (wouldExceed("inbox:" + thread.to, 30)) return json(res, 429, { ok: false, reason: "rate_recipient" });
+    charges.push(["thread:" + thread.tag, 20, HOUR], ["inbox:" + thread.to, 30, 24 * HOUR]);
   } else {
     // (1) abuse gate — only school accounts, ever
     const gate = checkRecipient(body.to);
     if (!gate.ok) return json(res, 400, { ok: false, reason: gate.reason, domain: gate.domain || null });
     if (store.isBlocked(gate.email)) return json(res, 403, { ok: false, reason: "blocked" });
-    if (!bump("to:" + gate.email, 6, 24 * HOUR)) return json(res, 429, { ok: false, reason: "rate_recipient" });
-    if (!bump("inbox:" + gate.email, 30, 24 * HOUR)) return json(res, 429, { ok: false, reason: "rate_recipient" });
-
-    const created = await store.newThread({ to: gate.email, domain: gate.domain });
-    thread = created.thread;
-    pass = created.pass;
+    if (wouldExceed("to:" + gate.email, 6)) return json(res, 429, { ok: false, reason: "rate_recipient" });
+    if (wouldExceed("inbox:" + gate.email, 30)) return json(res, 429, { ok: false, reason: "rate_recipient" });
+    charges.push(["to:" + gate.email, 6, 24 * HOUR], ["inbox:" + gate.email, 30, 24 * HOUR]);
+    newTo = { to: gate.email, domain: gate.domain };
     first = true;
   }
 
+  // shared budgets, still check-only — typo'd addresses and wrong passphrases
+  // never reached this point, so they never burned the crowd's budget
+  if (wouldExceed("send:" + ipKey(req), 120)) return json(res, 429, { ok: false, reason: "rate" });
+  if (wouldExceed("global:send", 400)) return json(res, 503, { ok: false, reason: "capacity" });
+  charges.push(["send:" + ipKey(req), 120, HOUR], ["global:send", 400, 24 * HOUR]);
+
+  // every refusal point has passed: charge everything, then create
+  for (const [k, lim, win] of charges) bump(k, lim, win);
+
+  if (first) {
+    const created = await store.newThread(newTo);
+    thread = created.thread;
+    pass = created.pass;
+  }
+
   if (store.isBlocked(thread.to)) return json(res, 403, { ok: false, reason: "blocked" });
-
-  /* the per-IP send budget charges AFTER validation — a typo'd address or a
-     wrong passphrase must not burn the shared budget. 120/h: behind venue
-     WiFi or carrier CGNAT, one egress IP is the WHOLE crowd, and the
-     per-recipient caps above are what actually bound inbox spend. */
-  if (!bump("send:" + ipKey(req), 120, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
-
-  /* global daily ceiling, safely under Gmail's ~500/day: failing closed with
-     an honest reason beats Gmail's hard cap surfacing as a generic 502. */
-  if (!bump("global:send", 400, 24 * HOUR)) return json(res, 503, { ok: false, reason: "capacity" });
 
   const stored = store.addMessage(thread.tag, "student", message);
   try {
