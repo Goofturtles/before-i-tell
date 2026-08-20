@@ -45,11 +45,12 @@ const T3 = [
   // --- ABUSE family ---
   // verb list is tense-complete on purpose: present ("chokes me") and past
   // ("choked me") both fire; sexual-assault verbs included
-  // idiom guards: "beats me at chess/in the race" (competition) and "hits me
-  // up" (messaging) are not abuse. The lookaheads sit on the two polysemous
-  // verbs only; every real-abuse phrasing ("he beats me", "he beats me up",
-  // "she hits me hard") still fires.
-  { id: "t3-abuse-active",  fam: "abuse", re: /\b(my\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|stepfather|stepmother|brother|sister|stepbrother|stepsister|uncle|aunt|cousin|grandpa|grandma|boyfriend|girlfriend|bf|gf|partner|coach|teacher)\s+(hits?\s+me\b(?!\s+up\b)|hurts?\s+me\b|beats?\s+me\b(?!\s+(at|in)\b)|(touch(es|ed)?|abus(es|ed|ing)?|slap(s|ped)?|chok(e|es|ed|ing)|grab(s|bed)?|punch(es|ed)?|kick(s|ed)?|molest(s|ed)?|rap(es|ed))\s+me\b)/i },
+  // idiom guards: "beats me at chess" (competition) and "hits me up"
+  // (messaging) are not abuse. Only "at" is excluded, not "in" — "beats me in
+  // the basement" is real abuse, and a safety product must over-fire ("beats
+  // me in every race") rather than miss. Every real phrasing ("he beats me",
+  // "he beats me up", "she hits me hard") still fires.
+  { id: "t3-abuse-active",  fam: "abuse", re: /\b(my\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|stepfather|stepmother|brother|sister|stepbrother|stepsister|uncle|aunt|cousin|grandpa|grandma|boyfriend|girlfriend|bf|gf|partner|coach|teacher)\s+(hits?\s+me\b(?!\s+up\b)|hurts?\s+me\b|beats?\s+me\b(?!\s+at\b)|(touch(es|ed)?|abus(es|ed|ing)?|slap(s|ped)?|chok(e|es|ed|ing)|grab(s|bed)?|punch(es|ed)?|kick(s|ed)?|molest(s|ed)?|rap(es|ed))\s+me\b)/i },
   { id: "t3-abuse-passive", fam: "abuse", re: /\bi\s+(was|got|am\s+being|have\s+been)\s+(raped|molested|sexually\s+(abused|assaulted|touched))\b/i },
   { id: "t3-abuse-someone", fam: "abuse", re: /\b(someone|somebody)\s+(touch(es|ed)?|molest(s|ed)?|rap(es|ed))\s+me\b/i },
   { id: "t3-abuse-fear",    fam: "abuse", re: new RegExp(`\\b(scared|afraid|terrified)\\s+(that\\s+)?(my\\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|brother|sister|boyfriend|girlfriend|partner)\\s*(${AP}ll|\\s+will|\\s+might|\\s+is\\s+going\\s+to)\\s+(hurt|hit|kill|beat)\\s+me\\b`, "i") },

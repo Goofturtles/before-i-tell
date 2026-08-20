@@ -210,15 +210,18 @@ for (const real of ["i want to kill myself", "i have been cutting myself", "i od
   ok(`still a crisis: ${JSON.stringify(real.slice(0, 34))}`, checkTier3(real).tier === 3);
 }
 // bug-hunt: everyday idioms must NOT trigger a crisis takeover / refuse-to-send
+// "at" (competition) is guarded; "up"/"some slack" too
 for (const idiom of ["my brother beats me at mario kart", "she beats me at chess",
-                     "he beats me in every race", "he hit me up after class",
-                     "she hits me up on snap", "i need to cut myself some slack",
-                     "i should cut myself some slack for once"]) {
+                     "he hit me up after class", "she hits me up on snap",
+                     "i need to cut myself some slack", "i should cut myself some slack for once"]) {
   ok(`idiom is NOT a crisis: ${JSON.stringify(idiom.slice(0, 34))}`, checkTier3(idiom).tier === 0);
 }
-// …but the abuse/self-harm readings of the same verbs still fire
+// …but the abuse/self-harm readings still fire — including "beats me in <place>"
+// ("in" is deliberately NOT guarded: over-fire on "in every race" beats missing
+// "beats me in the basement")
 for (const real of ["he beats me", "he beats me up", "she beats me every night",
-                    "he hits me hard", "i cut myself", "cutting myself"]) {
+                    "he beats me in the basement", "he hits me hard",
+                    "i cut myself", "cutting myself"]) {
   ok(`real reading still fires: ${JSON.stringify(real.slice(0, 34))}`, checkTier3(real).tier === 3);
 }
 
