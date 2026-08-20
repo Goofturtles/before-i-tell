@@ -43,6 +43,9 @@ const SHELL = [
   "media/warm-poster.jpg",
   "manifest.webmanifest",
   "icon.svg",
+  // NEVER add media/voice/* here: those files may not exist, and one 404
+  // fails cache.addAll and bricks the whole install. Voice clips are cached
+  // at runtime by serveAudio() below.
 ];
 
 self.addEventListener("install", (e) => {
@@ -63,9 +66,48 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+/* Audio needs its own path: media elements send Range headers, servers answer
+   206, and a 206 must never be cached as if it were the whole file. Cache ONE
+   full 200 (fetched without Range), then serve byte slices from it — that's
+   what makes the voice clips genuinely work offline, including iOS Safari,
+   which insists on a real 206 for ranged media requests. */
+async function serveAudio(e, url) {
+  const key = url.origin + url.pathname;
+  const cache = await caches.open(VERSION);
+  let full = await cache.match(key);
+  if (!full) {
+    full = await fetch(key, { cache: "no-cache" }); // plain GET: no Range
+    if (full.ok && full.status === 200 && full.type === "basic") {
+      await cache.put(key, full.clone()).catch(() => { /* quota: stream live */ });
+    } else {
+      return full;
+    }
+  }
+  const range = e.request.headers.get("range");
+  if (!range) return full;
+  const buf = await full.arrayBuffer(); // cache.match returned a copy — safe to consume
+  const m = /bytes=(\d+)-(\d*)/.exec(range);
+  const start = m ? Number(m[1]) : 0;
+  const end = m && m[2] ? Math.min(Number(m[2]), buf.byteLength - 1) : buf.byteLength - 1;
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      "Content-Type": full.headers.get("Content-Type") || "audio/mpeg",
+      "Content-Range": `bytes ${start}-${end}/${buf.byteLength}`,
+      "Content-Length": String(end - start + 1),
+      "Accept-Ranges": "bytes",
+    },
+  });
+}
+
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
+
+  if (url.pathname.endsWith(".mp3")) {
+    e.respondWith(serveAudio(e, url).catch(() => fetch(e.request)));
+    return;
+  }
 
   e.respondWith(
     // ignoreSearch: links shared through chat apps grow tracking params

@@ -96,10 +96,13 @@ const jobs = [
 ];
 
 if (!existsSync(OUT)) await mkdir(OUT, { recursive: true });
+// always merge with the existing manifest — --force re-records the selected
+// set but must never orphan clips voiced in an earlier run
 let manifest = { v: 1, voice: VOICE, clips: {} };
-if (existsSync(MANIFEST) && !FORCE) {
+if (existsSync(MANIFEST)) {
   try { manifest = JSON.parse(await readFile(MANIFEST, "utf8")); } catch { /* rebuild */ }
 }
+if (!manifest.clips || typeof manifest.clips !== "object") manifest.clips = {};
 
 let chars = 0, made = 0, skipped = 0;
 for (const job of jobs) {
@@ -124,6 +127,9 @@ for (const job of jobs) {
   }
   await new Promise((r) => setTimeout(r, 600)); // stay polite to the API
 }
+
+// final write covers the all-skipped case (mp3s present, manifest deleted)
+await writeFile(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
 
 console.log(`\n${made} generated (${chars} chars billed), ${skipped} already existed.`);
 console.log(`Manifest: ${MANIFEST}`);

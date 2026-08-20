@@ -28,11 +28,15 @@ function loadManifest() {
   return manifestPromise;
 }
 
+function setPressed(btn, on) {
+  btn.classList.toggle("playing", on);
+  btn.setAttribute("aria-pressed", String(on));
+}
+
 function stop() {
   if (!current) return;
   current.audio.pause();
-  current.btn.classList.remove("playing");
-  current.btn.setAttribute("aria-pressed", "false");
+  setPressed(current.btn, false);
   current = null;
 }
 
@@ -73,15 +77,29 @@ export const voice = {
         "aria-label": label + " — pre-recorded, playing sends nothing",
       }, icon(), label);
       btn.addEventListener("click", () => {
-        if (current?.btn === btn) { stop(); return; }
+        // same button again: pause in place / resume from where it stopped —
+        // an interrupted adult must not restart a two-minute briefing at zero
+        if (current?.btn === btn) {
+          if (current.audio.paused) {
+            const cur = current;
+            setPressed(btn, true);
+            cur.audio.play().catch(() => { if (current === cur) stop(); });
+          } else {
+            current.audio.pause();
+            setPressed(btn, false);
+          }
+          return;
+        }
         stop();
         const audio = new Audio(src);
         current = { audio, btn };
-        btn.classList.add("playing");
-        btn.setAttribute("aria-pressed", "true");
-        audio.addEventListener("ended", stop);
-        audio.addEventListener("error", stop);
-        audio.play().catch(stop);
+        setPressed(btn, true);
+        // guard on identity: a slow clip's late error must not silence
+        // whatever replaced it
+        const stopIfCurrent = () => { if (current?.audio === audio) stop(); };
+        audio.addEventListener("ended", stopIfCurrent);
+        audio.addEventListener("error", stopIfCurrent);
+        audio.play().catch(stopIfCurrent);
       });
       container.append(btn);
     });
