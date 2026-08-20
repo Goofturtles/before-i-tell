@@ -142,7 +142,10 @@ export async function newThread({ to, domain, codename }) {
 }
 
 export function getThread(tag) {
-  return db.threads[String(tag || "")] || null;
+  // own-property only: a reserved tag like "constructor"/"__proto__" would
+  // otherwise resolve to a built-in and produce a bogus thread object
+  const k = String(tag || "");
+  return Object.hasOwn(db.threads, k) ? db.threads[k] : null;
 }
 
 /** roll back a stored message whose email never left. Without this the student

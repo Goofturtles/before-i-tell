@@ -48,14 +48,17 @@ export async function relayPost(path, payload, { timeoutMs = 45000 } = {}) {
     // (daily capacity) with honest reasons — trust a parseable body. Only an
     // unparseable gateway page (Render edge fronting a dead/waking instance)
     // is the truly-uncertain case that earns the hedged timeout copy.
-    if (!res.ok && res.status >= 502) {
+    if (!res.ok && res.status >= 500) {
       const body = await res.json().catch(() => null);
       return body && typeof body.reason === "string" ? body : { ok: false, reason: "timeout" };
     }
-    return await res.json();
+    // a response ARRIVED — if its body won't parse, the request still may have
+    // been processed, so hedge ("can't confirm") rather than claiming offline
+    try { return await res.json(); }
+    catch { return { ok: false, reason: "timeout" }; }
   } catch (err) {
-    // a timeout is NOT "nothing was sent" — the request may have arrived and
-    // only the answer been lost. The caller's copy must not claim certainty.
+    // only a rejected fetch means no response reached the server at all —
+    // "offline" (certain nothing sent) is honest ONLY here
     return { ok: false, reason: err?.name === "AbortError" ? "timeout" : "offline" };
   } finally {
     clearTimeout(timer);

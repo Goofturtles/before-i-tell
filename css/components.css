@@ -524,10 +524,17 @@
   box-shadow: var(--panel-shadow);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .takeover__panel { animation: takeover-in 0.5s var(--ease-apple-out) both; }
+  /* the dim eases in so the world softens rather than snaps — a crisis moment
+     must feel grounding, never jarring. The panel settles gently with no
+     playful overshoot; routes are instant (never stagger access to a helpline). */
+  .takeover { animation: takeover-dim 0.35s var(--ease-apple-standard) both; }
+  .takeover__panel { animation: takeover-in 0.55s var(--ease-out-expo) both; }
+}
+@keyframes takeover-dim {
+  from { background: transparent; }
 }
 @keyframes takeover-in {
-  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: none; }
 }
 .takeover__panel h2 { font-size: var(--t-head-sm); line-height: 1.3; margin-bottom: var(--s-3); }

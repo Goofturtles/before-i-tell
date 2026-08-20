@@ -70,11 +70,12 @@ export const link = {
 
     // sanitize strictly: unknown ids are skipped (never fatal), params
     // validated, duplicates collapsed — a crafted fragment must not render
-    // the same request card forty times
-    const rawCount = Array.isArray(raw.t) ? raw.t.length : 0;
-    const ids = Array.isArray(raw.t) ? raw.t.filter((x) => typeof x === "string") : [];
-    const known = [...new Set(ids.filter((id) => KNOWN_IDS.has(id)))];
-    const skipped = rawCount - known.length;
+    // the same request card forty times. skipped counts only GENUINELY
+    // dropped entries (unknown ids, non-strings) — collapsing a legitimate
+    // duplicate is not a "couldn't display" and must not warn the adult.
+    const rawEntries = Array.isArray(raw.t) ? raw.t : [];
+    const known = [...new Set(rawEntries.filter((x) => typeof x === "string" && KNOWN_IDS.has(x)))];
+    const skipped = rawEntries.filter((x) => typeof x !== "string" || !KNOWN_IDS.has(x)).length;
 
     const params = {};
     if (raw.p && typeof raw.p === "object") {

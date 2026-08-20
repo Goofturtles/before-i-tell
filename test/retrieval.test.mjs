@@ -67,6 +67,10 @@ const MUST_REFUSE = [
   "whats the weather today",
   "do my homework for me",
   "what time does school end",
+  // bug-hunt: "high school" must NOT return the drugs/police answer
+  "high school",
+  "my high school",
+  "i go to a big high school",
 ];
 
 let pass = 0, fail = 0;

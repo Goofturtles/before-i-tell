@@ -117,10 +117,16 @@ export const terms = {
     // field-by-field over defaults: hand-edited or corrupt storage must never
     // brick the flow (a bad `on` crashed /tell/terms permanently). Junk ids
     // inside a valid array are fine — every consumer tolerates them.
+    // params: keep only string values — a corrupt object value would render
+    // "[object Object]" into the words card and the adult preview
+    let params = {};
+    if (saved.params && typeof saved.params === "object" && !Array.isArray(saved.params)) {
+      for (const [k, v] of Object.entries(saved.params)) if (typeof v === "string") params[k] = v;
+    }
     return {
       v: TERMS_VERSION,
       on: Array.isArray(saved.on) ? saved.on : def.on,
-      params: saved.params && typeof saved.params === "object" && !Array.isArray(saved.params) ? saved.params : {},
+      params,
       name: typeof saved.name === "string" ? saved.name : "",
       role: typeof saved.role === "string" ? saved.role : "counsellor",
     };

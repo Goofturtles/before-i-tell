@@ -10,7 +10,7 @@
    After a deploy, a page may render one visit stale and be current the next —
    the honest trade for working offline. Bump VERSION to force a clean sweep. */
 
-const VERSION = "bit-v4"; // bump per deploy: forces one atomic fresh snapshot
+const VERSION = "bit-v5"; // bump per deploy: forces one atomic fresh snapshot
 
 const SHELL = [
   "./",
@@ -86,14 +86,29 @@ async function serveAudio(e, url) {
   const range = e.request.headers.get("range");
   if (!range) return full;
   const buf = await full.arrayBuffer(); // cache.match returned a copy — safe to consume
-  const m = /bytes=(\d+)-(\d*)/.exec(range);
-  const start = m ? Number(m[1]) : 0;
-  const end = m && m[2] ? Math.min(Number(m[2]), buf.byteLength - 1) : buf.byteLength - 1;
+  const total = buf.byteLength;
+  const ctype = full.headers.get("Content-Type") || "audio/mpeg";
+  // parse "bytes=A-B", "bytes=A-" (open end), and "bytes=-N" (suffix); anything
+  // else or out-of-range gets a spec-correct 416 instead of a broken 206
+  const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+  let start, end;
+  if (m && m[1] === "" && m[2] !== "") { // suffix: last N bytes
+    const n = Math.min(Number(m[2]), total);
+    start = total - n; end = total - 1;
+  } else if (m && m[1] !== "") {
+    start = Number(m[1]);
+    end = m[2] !== "" ? Math.min(Number(m[2]), total - 1) : total - 1;
+  } else {
+    return full; // unparseable / multi-range: serve the whole file, not a lie
+  }
+  if (start > end || start < 0 || start >= total) {
+    return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${total}`, "Accept-Ranges": "bytes" } });
+  }
   return new Response(buf.slice(start, end + 1), {
     status: 206,
     headers: {
-      "Content-Type": full.headers.get("Content-Type") || "audio/mpeg",
-      "Content-Range": `bytes ${start}-${end}/${buf.byteLength}`,
+      "Content-Type": ctype,
+      "Content-Range": `bytes ${start}-${end}/${total}`,
       "Content-Length": String(end - start + 1),
       "Accept-Ranges": "bytes",
     },

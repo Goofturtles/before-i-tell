@@ -209,6 +209,18 @@ for (const real of ["i want to kill myself", "i have been cutting myself", "i od
                     "i don't feel safe at home", "my dad chokes me"]) {
   ok(`still a crisis: ${JSON.stringify(real.slice(0, 34))}`, checkTier3(real).tier === 3);
 }
+// bug-hunt: everyday idioms must NOT trigger a crisis takeover / refuse-to-send
+for (const idiom of ["my brother beats me at mario kart", "she beats me at chess",
+                     "he beats me in every race", "he hit me up after class",
+                     "she hits me up on snap", "i need to cut myself some slack",
+                     "i should cut myself some slack for once"]) {
+  ok(`idiom is NOT a crisis: ${JSON.stringify(idiom.slice(0, 34))}`, checkTier3(idiom).tier === 0);
+}
+// …but the abuse/self-harm readings of the same verbs still fire
+for (const real of ["he beats me", "he beats me up", "she beats me every night",
+                    "he hits me hard", "i cut myself", "cutting myself"]) {
+  ok(`real reading still fires: ${JSON.stringify(real.slice(0, 34))}`, checkTier3(real).tier === 3);
+}
 
 // blocker 2 — inbound replies must be authenticated
 const t2 = await post("/send", { to: "counsellor@yrdsb.ca", message: "hello, can we talk this week" });
@@ -257,6 +269,12 @@ ok("POST /block actually blocks", /Blocked\./.test(await acted.text()));
 ok("rejects a registrable lookalike board (.com)", checkRecipient("x@evildsb.com").ok === false);
 ok("rejects a registrable lookalike board (.net)", checkRecipient("x@fakecdsb.net").ok === false);
 ok("still accepts a real board", checkRecipient("x@tvdsb.ca").ok === true);
+// bug-hunt: bare .ca is openly registrable at CIRA — the structural pattern
+// must require .on.ca or "myevildsb.ca" is a free remailer
+ok("rejects registrable bare-.ca lookalike (dsb)", checkRecipient("x@myevildsb.ca").ok === false);
+ok("rejects registrable bare-.ca lookalike (cdsb)", checkRecipient("x@harassmentcdsb.ca").ok === false);
+for (const real of ["x@yrdsb.ca", "x@ddsb.ca", "x@ocdsb.ca", "x@ycdsb.ca", "x@amdsb.ca"])
+  ok(`real bare-.ca board still accepted (exact set): ${real}`, checkRecipient(real).ok === true);
 
 /* ---------------- 10. re-audit regressions ---------------- */
 group("10. re-audit regressions");

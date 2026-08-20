@@ -169,24 +169,57 @@ async function pollImap() {
   return n;
 }
 
-/** first text/plain section of a raw RFC822 message, quoted-printable decoded */
+function decodeBody(head, body) {
+  if (/content-transfer-encoding:\s*quoted-printable/i.test(head)) {
+    // assemble raw bytes, then decode ONCE as UTF-8 — decoding each =XX as a
+    // Latin-1 char split multibyte sequences (é, —, ') into garbage glyphs,
+    // so a counsellor's reply with any accent showed up mangled to the child
+    const collapsed = body.replace(/=\r?\n/g, "");
+    const bytes = [];
+    for (let i = 0; i < collapsed.length; i++) {
+      const hx = collapsed.substr(i + 1, 2);
+      if (collapsed[i] === "=" && /^[0-9A-Fa-f]{2}$/.test(hx)) { bytes.push(parseInt(hx, 16)); i += 2; }
+      else bytes.push(collapsed.charCodeAt(i) & 0xff);
+    }
+    return Buffer.from(bytes).toString("utf8");
+  }
+  if (/content-transfer-encoding:\s*base64/i.test(head)) {
+    try { return Buffer.from(body.replace(/\s+/g, ""), "base64").toString("utf8"); } catch { return body; }
+  }
+  return body;
+}
+
+/** turn an HTML part into readable plain text — the fallback for HTML-only
+    clients, so a counsellor's reply never shows up as raw markup to a child */
+function htmlToText(html) {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** first text/plain section of a raw RFC822 message, quoted-printable decoded;
+    falls back to a de-tagged text/html part, never raw MIME */
 export function extractPlain(source) {
   const s = String(source || "").replace(/\r\n/g, "\n");
   const parts = s.split(/\n--[^\n]+\n/);
   const candidates = parts.length > 1 ? parts : [s];
+  let htmlFallback = "";
   for (const part of candidates) {
     const split = part.indexOf("\n\n");
     if (split === -1) continue;
     const head = part.slice(0, split);
-    if (parts.length > 1 && !/content-type:\s*text\/plain/i.test(head)) continue;
-    let body = part.slice(split + 2);
-    if (/content-transfer-encoding:\s*quoted-printable/i.test(head)) {
-      body = body.replace(/=\n/g, "").replace(/=([0-9A-F]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
-    } else if (/content-transfer-encoding:\s*base64/i.test(head)) {
-      try { body = Buffer.from(body.replace(/\s+/g, ""), "base64").toString("utf8"); } catch { /* leave raw */ }
-    }
+    const isHtml = /content-type:\s*text\/html/i.test(head);
+    if (parts.length > 1 && !/content-type:\s*text\/plain/i.test(head) && !isHtml) continue;
+    const body = decodeBody(head, part.slice(split + 2));
+    if (isHtml) { if (!htmlFallback) htmlFallback = htmlToText(body); continue; }
     if (body.trim()) return body;
   }
+  if (htmlFallback) return htmlFallback;
   return s.slice(s.indexOf("\n\n") + 2);
 }
 

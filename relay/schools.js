@@ -47,11 +47,17 @@ const ALLOW_DOMAINS = new Set([
    .edu / k12 / sch cover schools elsewhere. Deliberately conservative — a false
    negative sends someone to Level 3, a false positive builds a remailer. */
 const ALLOW_PATTERNS = [
-  // Ontario boards. Restricted to .ca / .on.ca: .com/.net/.org are trivially
-  // registrable, so "evildsb.com" + a catch-all forward would have laundered
-  // mail to any inbox and defeated the whole gate.
-  /(^|\.)[a-z]{2,}dsb\.(on\.)?ca$/i,
-  /(^|\.)[a-z]{2,}cdsb\.(on\.)?ca$/i,
+  // Ontario boards. Restricted to .on.ca ONLY: a bare .ca is an openly
+  // registrable CIRA ccTLD (same class as .com), so "myevildsb.ca" + a
+  // catch-all forward would have laundered mail to any inbox and defeated the
+  // whole gate. .on.ca third-level registrations are effectively closed, so
+  // they can't be self-registered. Every board that legitimately uses a bare
+  // .ca (yrdsb.ca, ddsb.ca, hdsb.ca, ocdsb.ca, wrdsb.ca, ugdsb.ca, tvdsb.ca,
+  // kprdsb.ca, amdsb.ca, ycdsb.ca, wcdsb.ca) is in the exact-match set above,
+  // so tightening the pattern rejects no real recipient — it only closes the
+  // remailer hole.
+  /(^|\.)[a-z]{2,}dsb\.on\.ca$/i,
+  /(^|\.)[a-z]{2,}cdsb\.on\.ca$/i,
   // registry-controlled educational namespaces (cannot be self-registered
   // without meeting the registry's accreditation rules)
   /(^|\.)edu$/i,

@@ -56,6 +56,10 @@
   --ease-apple-out:      cubic-bezier(0.16, 1, 0.3, 1);
   --ease-apple-spring:   cubic-bezier(0.34, 1.4, 0.44, 1);  /* playful overshoot */
   --ease-apple-in:       cubic-bezier(0.4, 0, 1, 1);
+  /* refined entrance curves: expo-out decelerates harder for a "settle", soft
+     spring has a gentler overshoot than the playful one (for content, not decor) */
+  --ease-out-expo:       cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-spring-soft:    cubic-bezier(0.22, 1.12, 0.36, 1);
 
   /* --- radii: soft & friendly --- */
   --r-card: 28px;

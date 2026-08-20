@@ -127,16 +127,21 @@ function html(res, code, body) {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let size = 0;
+    let size = 0, over = false;
     const chunks = [];
     req.on("data", (c) => {
+      if (over) return;
       size += c.length;
-      if (size > MAX_BODY) { reject(new Error("too large")); req.destroy(); return; }
+      // don't destroy the socket — that resets the TCP connection and the
+      // client sees a network error instead of a readable 413. Drain and
+      // reject with a typed error the handler turns into an honest status.
+      if (size > MAX_BODY) { over = true; const e = new Error("too large"); e.code = "TOO_LARGE"; reject(e); return; }
       chunks.push(c);
     });
     req.on("end", () => {
+      if (over) return;
       try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); }
-      catch { reject(new Error("bad json")); }
+      catch { const e = new Error("bad json"); e.code = "BAD_JSON"; reject(e); }
     });
     req.on("error", reject);
   });
@@ -361,6 +366,7 @@ const server = createServer(async (req, res) => {
   } catch (err) {
     // never echo the error: it can contain fragments of what was posted
     console.error("[server]", req.method, url.pathname, err.message);
+    if (err?.code === "TOO_LARGE") return json(res, 413, { ok: false, reason: "too_long" });
     return json(res, 400, { ok: false, reason: "bad_request" });
   }
 });

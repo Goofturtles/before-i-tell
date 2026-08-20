@@ -31,7 +31,11 @@ export const SYNONYMS = {
   cas: "childrens-aid", "children's": "childrens-aid",
   // substances
   weed: "drugs", vape: "drugs", vaping: "drugs", smoking: "drugs", alcohol: "drugs",
-  drinking: "drugs", drunk: "drugs", high: "drugs", pills: "drugs",
+  drinking: "drugs", drunk: "drugs", pills: "drugs",
+  // NB: "high" is deliberately NOT mapped — on a school app "high school" is
+  // far more common than the substance sense, and high→drugs made "high
+  // school" confidently return the drugs/police answer. Substance queries
+  // reach drugs-alcohol via weed/vape/drunk/etc. instead.
   // actions
   snitch: "report", snitching: "report", rat: "report", tattle: "report",
   tell: "report", telling: "report", told: "report", reported: "report", reporting: "report",
