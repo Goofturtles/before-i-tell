@@ -211,8 +211,10 @@ export const safety = {
     this._releaseTrap = trapFocus(overlay);
 
     this._escBlock = (e) => {
-      // stopImmediatePropagation: other capture listeners on document (e.g.
-      // the practice overlay's Escape-to-close) must not act under the takeover
+      // stopImmediatePropagation only silences listeners registered AFTER
+      // this one — the real invariant is that no other Escape-closable layer
+      // (e.g. the practice overlay) can coexist with an active takeover:
+      // practice contains no guarded inputs, and the takeover inerts its opener
       if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); }
     };
     document.addEventListener("keydown", this._escBlock, true);

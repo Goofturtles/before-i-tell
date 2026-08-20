@@ -67,7 +67,9 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
 
   e.respondWith(
-    caches.match(e.request).then((hit) => {
+    // ignoreSearch: links shared through chat apps grow tracking params
+    // (?fbclid=…) — those must still hit the cached page offline
+    caches.match(e.request, { ignoreSearch: true }).then((hit) => {
       // no-cache: revalidate against the server (conditional request), not the
       // HTTP cache — otherwise the background refresh can re-store the very
       // stale copy it was meant to replace

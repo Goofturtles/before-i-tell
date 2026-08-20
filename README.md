@@ -72,7 +72,7 @@ css/print.css      print: forced light, chrome stripped
 js/store.js        bit:* storage with in-memory fallback
 js/router.js       hash router, guards, safety lock
 js/safety.js       tier taxonomy, takeover, banner, quick exit
-js/corpus.js       DATA: 16 cited Q&A entries + teen-register synonyms
+js/corpus.js       DATA: 23 cited Q&A entries + teen-register synonyms
 js/retrieval.js    lexical scoring; honest refusal below threshold
 js/ask.js          L1 screen
 js/terms.js        terms catalog (student + adult copy, append-only ids)
