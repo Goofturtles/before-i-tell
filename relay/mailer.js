@@ -1,14 +1,21 @@
 /* mailer.js — outbound mail.
 
-   Two modes, chosen by BIT_RELAY_MODE:
-     dry  (default) — writes .eml files to outbox/. Nothing is sent. The whole
-                      flow is testable with no credentials and no risk of
-                      mailing a real school by accident.
-     live           — Gmail SMTP with an App Password (2FA account required).
+   Delivery transport, chosen automatically:
+     dry (default)     — writes .eml files to outbox/. Nothing is sent. The
+                         whole flow is testable with no credentials.
+     Brevo HTTP API    — when BIT_BREVO_API_KEY is set. Sends over HTTPS (443),
+                         which is what makes live delivery work on hosts that
+                         BLOCK outbound SMTP — Render's free tier does exactly
+                         that, so the old Gmail-SMTP path timed out there and
+                         no mail ever left. This is the production path.
+     Gmail SMTP        — when a Gmail app password is set but no Brevo key.
+                         Works locally (where SMTP ports are open); kept for
+                         dev and for hosts that don't block SMTP.
 
-   Reply routing: every message sets Reply-To to <user>+bit<tag>@gmail.com.
-   Gmail delivers plus-addressed mail to the same inbox, so one free account
-   carries every thread and inbox.js can match the tag back to the thread. */
+   Reply routing is transport-independent: every message sets Reply-To to
+   <user>+bit<tag>@gmail.com, so a counsellor's reply lands in the relay Gmail
+   inbox regardless of who SENT it, and inbox.js (IMAP) matches the tag back to
+   the thread. Sending via Brevo and reading replies via Gmail compose cleanly. */
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -20,8 +27,19 @@ const GMAIL_USER = (process.env.BIT_GMAIL_USER || "").trim();
    presentation only — passing them to SMTP AUTH verbatim fails with
    "Username and Password not accepted", which reads like a wrong password. */
 const GMAIL_PASS = (process.env.BIT_GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
+const BREVO_KEY = (process.env.BIT_BREVO_API_KEY || "").trim();
+/* the verified Brevo sender. Defaults to the Gmail user (verify that address
+   in Brevo). Counsellors see this as the From; replies still go to Reply-To. */
+const MAIL_FROM = (process.env.BIT_MAIL_FROM || GMAIL_USER || "relay@localhost").trim();
 const PUBLIC_URL = (process.env.BIT_PUBLIC_URL || "http://localhost:8787").replace(/\/$/, "");
 const OUTBOX = process.env.BIT_OUTBOX_DIR || join(process.cwd(), "outbox");
+
+/** which live transport is active (Brevo preferred — it survives SMTP blocks) */
+function transportKind() {
+  if (BREVO_KEY) return "brevo";
+  if (GMAIL_USER && GMAIL_PASS) return "smtp";
+  return "none";
+}
 
 let transport = null;
 
@@ -41,6 +59,31 @@ async function getTransport() {
   return transport;
 }
 
+/** Brevo transactional-email HTTP API — POST over 443, no SMTP port needed. */
+async function sendViaBrevo({ to, subject, replyTo, text, html, tag }) {
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      sender: { email: MAIL_FROM, name: "Before I Tell" },
+      to: [{ email: to }],
+      replyTo: { email: replyTo },
+      subject,
+      textContent: text,
+      htmlContent: html,
+      headers: { "X-BIT-Thread": tag, "Auto-Submitted": "auto-generated" },
+    }),
+  });
+  if (!res.ok) {
+    // surface Brevo's reason in logs (never the message body) so a bad key or
+    // unverified sender is diagnosable; the caller turns any throw into "delivery"
+    const detail = await res.text().catch(() => "");
+    throw new Error(`brevo ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  return data.messageId || "brevo-ok";
+}
+
 /* The tag MUST land as "+bit<tag>@" — inbox.js parses exactly that shape, so
    the dry-mode fallback has to match the live one or the reply loop silently
    breaks in testing and works in production (or vice versa). */
@@ -50,7 +93,7 @@ export function replyAddress(tag) {
 }
 
 export function modeInfo() {
-  return { mode: MODE, configured: MODE !== "live" || Boolean(GMAIL_USER && GMAIL_PASS) };
+  return { mode: MODE, transport: transportKind(), configured: MODE !== "live" || transportKind() !== "none" };
 }
 
 const esc = (s) => String(s)
@@ -122,28 +165,29 @@ export async function sendToCounsellor({ to, codename, message, tag, first }) {
     ? `[Before I Tell] A student wants to talk — ${codename}`
     : `[Before I Tell] Re: message from ${codename}`);
 
-  const mail = {
-    from: MODE === "live" ? `"Before I Tell" <${GMAIL_USER}>` : `"Before I Tell" <relay@localhost>`,
-    to,
-    subject,
-    replyTo: replyAddress(tag),
-    text: bodyText({ codename, message, tag, first }),
-    html: bodyHtml({ codename, message, tag, first }),
-    headers: {
-      "Auto-Submitted": "auto-generated",
-      "X-BIT-Thread": tag,
-    },
-  };
+  const replyTo = replyAddress(tag);
+  const text = bodyText({ codename, message, tag, first });
+  const html = bodyHtml({ codename, message, tag, first });
 
   if (MODE !== "live") {
     if (!existsSync(OUTBOX)) await mkdir(OUTBOX, { recursive: true });
     const file = join(OUTBOX, `${Date.now()}-${tag.slice(0, 8)}.eml`);
     await writeFile(file,
-      `To: ${mail.to}\nFrom: ${mail.from}\nReply-To: ${mail.replyTo}\nSubject: ${mail.subject}\nX-BIT-Thread: ${tag}\n\n${mail.text}\n`, "utf8");
+      `To: ${to}\nFrom: "Before I Tell" <${MAIL_FROM}>\nReply-To: ${replyTo}\nSubject: ${subject}\nX-BIT-Thread: ${tag}\n\n${text}\n`, "utf8");
     return { ok: true, mode: "dry", id: file };
   }
 
-  if (!GMAIL_USER || !GMAIL_PASS) throw new Error("BIT_GMAIL_USER / BIT_GMAIL_APP_PASSWORD not set");
-  const info = await (await getTransport()).sendMail(mail);
-  return { ok: true, mode: "live", id: info.messageId };
+  const kind = transportKind();
+  if (kind === "brevo") {
+    const id = await sendViaBrevo({ to, subject, replyTo, text, html, tag });
+    return { ok: true, mode: "live", transport: "brevo", id };
+  }
+  if (kind === "smtp") {
+    const info = await (await getTransport()).sendMail({
+      from: `"Before I Tell" <${MAIL_FROM}>`, to, subject, replyTo, text, html,
+      headers: { "Auto-Submitted": "auto-generated", "X-BIT-Thread": tag },
+    });
+    return { ok: true, mode: "live", transport: "smtp", id: info.messageId };
+  }
+  throw new Error("no live transport: set BIT_BREVO_API_KEY (HTTP, works on Render) or Gmail SMTP creds");
 }
