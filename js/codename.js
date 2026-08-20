@@ -1,7 +1,9 @@
 /* codename.js — Level 2: talk to a school adult under a codename.
 
    This is the one screen that sends anything anywhere. Rules it keeps:
-     · Nothing is sent until the student presses a button that says "Send".
+     · No words leave this device until the student presses a button that says
+       "Send". (Opening a write screen fires warmRelay() — an empty /health GET
+       that wakes the free-tier relay; it carries nothing the student typed.)
      · The message is safety-checked here AND on the relay. Crisis content
        never becomes an email — it becomes the takeover.
      · Only school addresses are accepted (the relay enforces it; we explain
@@ -26,6 +28,7 @@ const REFUSALS = {
   auth: "That codename and passphrase don't match a conversation. Check for typos — the passphrase is case-sensitive.",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
+  timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
 };
 
 let mount = null;

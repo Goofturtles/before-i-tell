@@ -45,8 +45,10 @@ export async function relayPost(path, payload, { timeoutMs = 45000 } = {}) {
       referrerPolicy: "no-referrer",
     });
     return await res.json();
-  } catch {
-    return { ok: false, reason: "offline" };
+  } catch (err) {
+    // a timeout is NOT "nothing was sent" — the request may have arrived and
+    // only the answer been lost. The caller's copy must not claim certainty.
+    return { ok: false, reason: err?.name === "AbortError" ? "timeout" : "offline" };
   } finally {
     clearTimeout(timer);
   }
