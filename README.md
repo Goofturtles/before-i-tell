@@ -14,7 +14,7 @@ A website that prepares a young person to tell an adult at school something hard
 4. **Prove the privacy claim** — turn on airplane mode and reload. Levels 1 and 3 still work entirely. A tool that sent your answers to a server couldn't do that.
 5. **The other half** — the [adult briefing page](https://goofturtles.github.io/before-i-tell/adult.html) teaches the receiving adult how to listen, including the hard case where they must report.
 
-Under the hood: zero external requests on Levels 1/3, a rule-based retrieval engine that refuses instead of hallucinating (committed regression suites: `test/retrieval.test.mjs`, `relay/test/relay.test.mjs` — 109 assertions), and a codename email relay on **Render** with crisis interception, school-address-only delivery, and spoof-resistant rate limiting.
+Under the hood: zero external requests on Levels 1/3, a rule-based retrieval engine that refuses instead of hallucinating (committed regression suites: `test/retrieval.test.mjs`, `relay/test/relay.test.mjs` — 159 assertions), and a codename email relay on **Render** with crisis interception, school-address-only delivery, and spoof-resistant rate limiting.
 
 Built for **Hack for Humanity | Summer 2026** (theme: AI for mental/physical health). Interface: flat, high-contrast, Uber-Base-inspired — black & white foundation, heavy editorial type, light + dark themes.
 

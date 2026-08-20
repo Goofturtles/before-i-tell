@@ -185,7 +185,9 @@ function renderCompose() {
 
   // the site's whole thesis, applied to its own send button: see the exact
   // email — word for word — before deciding to send it
-  const previewBody = el("pre", { class: "mail-preview" }, emailPreview(""));
+  // tabindex: it's a bounded scroll region — keyboard users must be able to
+  // scroll the email they're being shown
+  const previewBody = el("pre", { class: "mail-preview", tabindex: "0", "aria-label": "The email, exactly as it will be sent" }, emailPreview(""));
   msgInput.addEventListener("input", () => { previewBody.textContent = emailPreview(msgInput.value.trim()); });
   const previewBox = el("details", { class: "mail-details" },
     el("summary", {}, "See the exact email they'll receive"),

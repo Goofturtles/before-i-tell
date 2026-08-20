@@ -101,7 +101,7 @@ function bodyHtml({ codename, message, tag, first }) {
   <div style="margin:22px 0;padding:16px 18px;background:#fdf0ec;border-radius:10px;font-size:14px">
     <p style="margin:0 0 10px"><b>Important</b></p>
     <p style="margin:0 0 8px">This is not a monitored crisis service, and nobody reads these messages but you. If you believe this student is in immediate danger and you cannot identify them, contact your school's admin team and Kids Help Phone (1-800-668-6868).</p>
-    <p style="margin:0 0 8px">We screen outgoing messages for explicit crisis language and route those students to crisis lines instead of to your inbox. That screening is pattern-based and <b>imperfect</b> — please don't assume a message reached you because it was judged safe.</p>
+    <p style="margin:0 0 8px">We screen outgoing messages for explicit crisis language and route those students to crisis lines instead of to your inbox. That screening is pattern-based and <b>imperfect</b> — please do not assume a message reached you because it was judged safe. Read it as you would any disclosure.</p>
     <p style="margin:0">Your Ontario duty to report is unchanged. If what you read gives reasonable grounds to suspect abuse or neglect of someone under 16, you must contact a children's aid society directly — and you should say so plainly in your reply.</p>
   </div>
   <p style="font-size:13px;color:#6b5d52">Not expecting this, or don't want messages here? <a href="${esc(blockUrl)}" style="color:#c2410c">Block this address permanently</a>.</p>

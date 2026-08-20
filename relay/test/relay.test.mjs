@@ -162,6 +162,22 @@ for (let i = 0; i < 130; i++) {
 }
 ok("per-IP send limit engages", limited);
 
+// authfail gate on the scrypt oracle: failures charge, success doesn't,
+// the 31st guess goes quiet, and a cleared window lets the right pass in
+_resetRates();
+const at = await post("/send", { to: "counsellor@tdsb.on.ca", message: "auth gate probe" });
+ok("auth-gate thread created", at.json.ok === true, JSON.stringify(at.json));
+for (let i = 0; i < 30; i++) await post("/send", { tag: at.json.tag, pass: "wrong-pass", message: "x" });
+const gated = await post("/send", { tag: at.json.tag, pass: "wrong-pass", message: "x" });
+ok("31st failed guess is rate-limited, not auth", gated.status === 429 && gated.json.reason === "rate");
+const rightButGated = await post("/send", { tag: at.json.tag, pass: at.json.pass, message: "y" });
+ok("closed gate holds even for the right passphrase (by design, 1h max)", rightButGated.status === 429);
+_resetRates();
+const rightAfterClear = await post("/send", { tag: at.json.tag, pass: at.json.pass, message: "hello again" });
+ok("correct passphrase works once the window clears", rightAfterClear.json.ok === true, JSON.stringify(rightAfterClear.json));
+const readAfterSuccess = await post("/thread", { tag: at.json.tag, pass: at.json.pass });
+ok("successes never charged the authfail bucket", readAfterSuccess.json.ok === true);
+
 const dump = JSON.stringify(store._db());
 ok("no IP address is persisted", !/\b\d{1,3}(\.\d{1,3}){3}\b/.test(dump));
 ok("passphrase is not stored in the clear", !dump.includes(first.json.pass));
