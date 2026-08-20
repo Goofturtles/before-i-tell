@@ -11,7 +11,7 @@
 
    Deployed relay lives in ../relay (see relay/README.md). */
 
-const PROD_RELAY = ""; // ← paste the deployed relay origin here, e.g. https://bit-relay.onrender.com
+const PROD_RELAY = "https://bit-relay.onrender.com"; // deployed 2026-08-20 (Render, free plan)
 
 const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
