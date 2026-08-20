@@ -65,7 +65,10 @@ async function sendViaBrevo({ to, subject, replyTo, text, html, tag }) {
     method: "POST",
     headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" },
     // a stalled socket must not hang the /send request forever — fail to
-    // "delivery" and roll back, same as any other send error
+    // "delivery" and roll back, same as any other send error. Edge (same class
+    // as the old SMTP timeout): an abort AFTER Brevo commits but before the ack
+    // rolls back anyway, so a retry double-sends. Duplicate > silent loss for
+    // this use case; there's no idempotency key, and 15s only trips a real stall.
     signal: AbortSignal.timeout(15000),
     body: JSON.stringify({
       sender: { email: MAIL_FROM, name: "Before I Tell" },
