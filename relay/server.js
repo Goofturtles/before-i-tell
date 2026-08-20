@@ -41,10 +41,14 @@ const RATE_SALT = createHash("sha256").update(String(Date.now()) + Math.random()
 const hits = new Map();
 const HOUR = 3600000;
 
+const MAX_RATE_KEYS = 50000; // bound the map even if keys get rotated at us
+
 function bump(key, limit, windowMs) {
   const now = Date.now();
   const rec = hits.get(key);
   if (!rec || now > rec.reset) {
+    // oldest-inserted eviction: a header-rotating abuser fills buckets, not memory
+    if (!rec && hits.size >= MAX_RATE_KEYS) hits.delete(hits.keys().next().value);
     hits.set(key, { n: 1, reset: now + windowMs });
     return true;
   }
@@ -53,8 +57,18 @@ function bump(key, limit, windowMs) {
   return true;
 }
 
+/* X-Forwarded-For: each trusted proxy APPENDS the address it accepted the
+   connection from, so the only entries a client cannot forge are the LAST
+   n, where n = trusted hops in front of this process. Taking [0] (the
+   leftmost) let anyone rotate a spoofed header for a fresh rate bucket on
+   every request. BIT_TRUSTED_HOPS defaults to 1 (Render's proxy); /health
+   reports the observed chain length so the value can be verified live. */
+const TRUSTED_HOPS = Math.max(1, Number(process.env.BIT_TRUSTED_HOPS || 1));
+
 function ipKey(req) {
-  const raw = (req.headers["x-forwarded-for"] || "").split(",")[0].trim()
+  const chain = String(req.headers["x-forwarded-for"] || "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const raw = (chain.length >= TRUSTED_HOPS ? chain[chain.length - TRUSTED_HOPS] : null)
     || req.socket.remoteAddress || "unknown";
   return createHash("sha256").update(RATE_SALT + raw).digest("hex").slice(0, 16);
 }
@@ -132,15 +146,12 @@ async function handleSend(req, res, body) {
     return json(res, 200, { ok: false, reason: "crisis", fam: risk.fam });
   }
 
-  const key = ipKey(req);
-  if (!bump("send:" + key, 12, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
-
   let thread, pass = null, first = false;
 
   if (body.tag) {
     // continuing an existing thread
     thread = store.getThread(String(body.tag));
-    if (!thread || !store.verifyPass(thread, body.pass)) {
+    if (!thread || !(await store.verifyPass(thread, body.pass))) {
       return json(res, 403, { ok: false, reason: "auth" });
     }
     if (!bump("thread:" + thread.tag, 20, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
@@ -155,13 +166,23 @@ async function handleSend(req, res, body) {
     if (!bump("to:" + gate.email, 6, 24 * HOUR)) return json(res, 429, { ok: false, reason: "rate_recipient" });
     if (!bump("inbox:" + gate.email, 30, 24 * HOUR)) return json(res, 429, { ok: false, reason: "rate_recipient" });
 
-    const created = store.newThread({ to: gate.email, domain: gate.domain });
+    const created = await store.newThread({ to: gate.email, domain: gate.domain });
     thread = created.thread;
     pass = created.pass;
     first = true;
   }
 
   if (store.isBlocked(thread.to)) return json(res, 403, { ok: false, reason: "blocked" });
+
+  /* the per-IP send budget charges AFTER validation — a typo'd address or a
+     wrong passphrase must not burn the shared budget. 120/h: behind venue
+     WiFi or carrier CGNAT, one egress IP is the WHOLE crowd, and the
+     per-recipient caps above are what actually bound inbox spend. */
+  if (!bump("send:" + ipKey(req), 120, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
+
+  /* global daily ceiling, safely under Gmail's ~500/day: failing closed with
+     an honest reason beats Gmail's hard cap surfacing as a generic 502. */
+  if (!bump("global:send", 400, 24 * HOUR)) return json(res, 503, { ok: false, reason: "capacity" });
 
   const stored = store.addMessage(thread.tag, "student", message);
   try {
@@ -189,18 +210,21 @@ async function handleSend(req, res, body) {
 
 async function handleThread(req, res, body) {
   const key = ipKey(req);
-  if (!bump("read:" + key, 60, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
+  // 600/h: an entire venue's WiFi shares one key — see the send-cap note
+  if (!bump("read:" + key, 600, HOUR)) return json(res, 429, { ok: false, reason: "rate" });
 
   const pass = String(body.pass || "");
   let thread = null;
 
   if (body.tag) {
     const t = store.getThread(String(body.tag));
-    if (t && store.verifyPass(t, pass)) thread = t;
+    if (t && (await store.verifyPass(t, pass))) thread = t;
   } else {
-    // codenames can collide; the passphrase is what actually authenticates
-    for (const t of store.findByCodename(body.codename)) {
-      if (store.verifyPass(t, pass)) { thread = t; break; }
+    // codenames can collide; the passphrase is what actually authenticates.
+    // slice: attackers can't choose codenames via the API, so real lookups
+    // see ~0-1 candidates — the cap only bounds a pathological store.
+    for (const t of store.findByCodename(body.codename).slice(0, 5)) {
+      if (await store.verifyPass(t, pass)) { thread = t; break; }
     }
   }
   if (!thread) return json(res, 403, { ok: false, reason: "auth" });
@@ -279,7 +303,10 @@ const server = createServer(async (req, res) => {
 
   try {
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, ...modeInfo(), ...store.stats() });
+      // xff: observed forwarded-chain length (no addresses) — lets the
+      // operator verify BIT_TRUSTED_HOPS against reality with one curl
+      const xff = String(req.headers["x-forwarded-for"] || "").split(",").filter((s) => s.trim()).length;
+      return json(res, 200, { ok: true, ...modeInfo(), ...store.stats(), xff, trustedHops: TRUSTED_HOPS });
     }
     if (req.method === "GET" && url.pathname === "/block") {
       return handleBlockConfirm(res, url);

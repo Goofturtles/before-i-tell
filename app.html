@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Before I Tell — Start</title>
-  <meta name="description" content="Ask what happens if you tell. Set your terms. Prepare the adult. Everything stays on your device.">
+  <meta name="description" content="Ask what happens if you tell. Set your terms. Prepare the adult. Everything stays on your device unless you press send.">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fdf9f3">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#201914">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='38' rx='14' fill='%23c2410c'/%3E%3Cpath d='M20 48 L20 58 L32 48 Z' fill='%23c2410c'/%3E%3Ccircle cx='22' cy='29' r='4' fill='white'/%3E%3Ccircle cx='42' cy='29' r='4' fill='white' opacity='.55'/%3E%3C/svg%3E">
   <link rel="manifest" href="manifest.webmanifest">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Before I Tell — Start">
-  <meta property="og:description" content="Ask what happens if you tell. Set your terms. Prepare the adult. Everything stays on your device.">
+  <meta property="og:description" content="Ask what happens if you tell. Set your terms. Prepare the adult. Everything stays on your device unless you press send.">
   <meta name="twitter:card" content="summary">
   <script>
     (function () {
@@ -30,7 +30,21 @@
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/print.css">
+  <link rel="stylesheet" href="css/print.css" media="print">
+  <link rel="modulepreload" href="js/app.js">
+  <link rel="modulepreload" href="js/ui.js">
+  <link rel="modulepreload" href="js/store.js">
+  <link rel="modulepreload" href="js/router.js">
+  <link rel="modulepreload" href="js/safety.js">
+  <link rel="modulepreload" href="js/ask.js">
+  <link rel="modulepreload" href="js/retrieval.js">
+  <link rel="modulepreload" href="js/corpus.js">
+  <link rel="modulepreload" href="js/terms.js">
+  <link rel="modulepreload" href="js/link.js">
+  <link rel="modulepreload" href="js/scaffold.js">
+  <link rel="modulepreload" href="js/codename.js">
+  <link rel="modulepreload" href="js/config.js">
+  <link rel="modulepreload" href="js/voice.js">
 </head>
 <body>
   <a class="skip-link" href="#view">Skip to content</a>
@@ -39,7 +53,7 @@
     <div class="nav__inner">
       <a class="nav__brand" href="index.html">
         <svg class="nav__mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="38" rx="14" fill="currentColor"/><path d="M20 48 L20 58 L32 48 Z" fill="currentColor"/><circle cx="22" cy="29" r="4" fill="var(--c-bg)"/><circle cx="42" cy="29" r="4" fill="var(--c-bg)" opacity=".55"/></svg>
-        Before I Tell
+        <span class="nav__brand-name">Before I Tell</span>
       </a>
       <div class="nav__links">
         <a href="index.html">About</a>
@@ -62,7 +76,7 @@
       <noscript>
         <div class="noscript-box">
           <h1 class="head-sm">This part needs JavaScript</h1>
-          <p>The interactive flow runs entirely in your browser — that's how nothing you type ever leaves your device. Without JavaScript it can't run, but the important numbers work anywhere:</p>
+          <p>Levels 1 and 3 run entirely in your browser — nothing you type there ever leaves your device, which is also why this part needs JavaScript to run. The important numbers work anywhere:</p>
           <p><b>Kids Help Phone:</b> 1-800-668-6868, or text CONNECT to 686868 — anonymous, 24/7.<br>
              <b>9-8-8:</b> call or text — Suicide Crisis Helpline.<br>
              <b>In immediate danger:</b> 911.</p>
@@ -76,7 +90,7 @@
     <div class="crisis__inner">
       <span class="crisis__label">Need someone right now?</span>
       <a href="tel:1-800-668-6868">Kids Help Phone 1-800-668-6868</a>
-      <a href="sms:686868?body=CONNECT">Text CONNECT to 686868</a>
+      <a href="sms:686868?&body=CONNECT">Text CONNECT to 686868</a>
       <a href="tel:988">Call or text 9-8-8</a>
       <span class="muted">In immediate danger: 911</span>
     </div>
@@ -84,7 +98,7 @@
 
   <footer class="footer">
     <div class="container">
-      <span>Before I Tell — nothing you enter leaves this device.</span>
+      <span>Before I Tell — nothing you enter leaves this device unless you press send.</span>
       <span>Rules shown are for Ontario schools.</span>
     </div>
   </footer>

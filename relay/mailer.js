@@ -59,7 +59,7 @@ const headerSafe = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 180);
 function bodyText({ codename, message, tag, first }) {
   const blockUrl = `${PUBLIC_URL}/block?tag=${tag}`;
   const intro = first
-    ? `A student at your school is using Before I Tell — a tool that lets a young person start a conversation with a school adult under a codename instead of their name, because not knowing what happens after telling is the #1 reason students stay silent.
+    ? `A student at your school is using Before I Tell — a tool that lets a young person start a conversation with a school adult under a codename instead of their name, because not knowing what happens after telling is one of the top reasons students stay silent.
 
 They have chosen to write to you. They are identified only as "${codename}". Nobody — including the people who built this — can see who they are.`
     : `New message from "${codename}" at your school, sent through Before I Tell.`;
@@ -87,7 +87,7 @@ Block this address permanently: ${blockUrl}
 function bodyHtml({ codename, message, tag, first }) {
   const blockUrl = `${PUBLIC_URL}/block?tag=${tag}`;
   const intro = first
-    ? `<p>A student at your school is using <b>Before I Tell</b> — a tool that lets a young person start a conversation with a school adult under a codename instead of their name, because not knowing what happens after telling is the #1 reason students stay silent.</p>
+    ? `<p>A student at your school is using <b>Before I Tell</b> — a tool that lets a young person start a conversation with a school adult under a codename instead of their name, because not knowing what happens after telling is one of the top reasons students stay silent.</p>
        <p>They have chosen to write to you. They are identified only as <b>${esc(codename)}</b>. Nobody — including the people who built this — can see who they are.</p>`
     : `<p>New message from <b>${esc(codename)}</b> at your school, sent through Before I Tell.</p>`;
 

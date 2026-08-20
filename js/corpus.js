@@ -44,8 +44,22 @@ export const SYNONYMS = {
   // secrets
   secret: "confidential", secrets: "confidential", private: "confidential",
   confidentiality: "confidential", anonymous: "confidential", anonymously: "confidential",
+  // family (step-parents ask the same questions)
+  stepdad: "parents", stepmom: "parents", stepfather: "parents", stepmother: "parents",
   // relationships
   boyfriend: "dating", girlfriend: "dating", bf: "dating", gf: "dating", partner: "dating",
+  // word families the corpus phrases one way and teens phrase another
+  abused: "abuse", abuses: "abuse", abusing: "abuse", abusive: "abuse",
+  drink: "drugs", drinks: "drugs",
+  hypothetically: "hypothetical",
+  yells: "yell", yelling: "yell", screams: "yell", screaming: "yell",
+  // noise tokens: SYNONYMS apply BEFORE the stop filter, so mapping a noise
+  // word onto an existing stopword deletes it from scoring entirely
+  dont: "not", cant: "not", wont: "not", doesnt: "not", didnt: "not", isnt: "not",
+  wat: "what", wut: "what", whats: "what", thats: "that",
+  u: "you", r: "are", ur: "your", by: "of",
+  he: "they", she: "they", his: "their", him: "them", her: "their",
+  being: "be", think: "that",
   // identity — "coming" (not "come") maps: "I'm coming out" is unambiguous,
   // bare "come" appears in too many unrelated questions
   gay: "identity", lesbian: "identity", bisexual: "identity", trans: "identity",
@@ -54,8 +68,6 @@ export const SYNONYMS = {
   // bullying
   bully: "bullying", bullied: "bullying", bullies: "bullying",
   cyberbullying: "bullying", cyberbullied: "bullying",
-  // removal fears
-  foster: "childrens-aid",
   // proof / being believed
   evidence: "proof", lying: "proof", liar: "proof",
   // getting started
@@ -77,7 +89,12 @@ export const CORPUS = [
       "Do you have to report if I say someone is hurting me?",
       "What can't stay between us?",
     ],
-    keywords: ["report", "abuse", "childrens-aid", "must", "law", "duty"],
+    // "anyone" is here on purpose: it ties "will you tell anyone" to THIS
+    // entry (ties break by CORPUS order — keep this entry above
+    // suicide-self-harm, whose q also contains "anyone").
+    // "childrens-aid" deliberately NOT a keyword here: bare "cas" queries
+    // should land on what-happens-after-report, which explains it.
+    keywords: ["report", "abuse", "must", "law", "duty", "anyone"],
     topics: ["reporting"],
     related: ["what-happens-after-report", "what-stays-private"],
     a: [
@@ -93,8 +110,9 @@ export const CORPUS = [
       "What stays confidential?",
       "What can I say that stays private?",
       "Will everything I say be shared?",
+      "There's a lot of yelling at home, is that abuse?",
     ],
-    keywords: ["confidential", "private", "stays", "between"],
+    keywords: ["confidential", "private", "stays", "between", "yell"],
     topics: ["confidentiality"],
     related: ["what-must-report", "tell-parents"],
     a: [
@@ -186,22 +204,9 @@ export const CORPUS = [
     cite: [CITE.oacas, CITE.oct],
   },
   {
-    id: "drugs-alcohol",
-    q: [
-      "Will I get in trouble if I tell them about drugs?",
-      "If I say I've been drinking do they call the police?",
-      "Can I talk about vaping without getting suspended?",
-    ],
-    keywords: ["drugs", "consequences", "suspended", "police"],
-    topics: ["consequences"],
-    related: ["police", "what-stays-private"],
-    a: [
-      "Counsellors are not the discipline office, and talking to one about drugs or drinking is not the same as being caught. Their job is support, and substance use on its own isn't something they report to police or children's aid.",
-      "It can become a safety issue if it puts you at serious risk — and school rules still exist if something happens on school property. If you're unsure where the line is, ask them first: 'If I talk about this, does it go anywhere?'",
-    ],
-    cite: [CITE.khp, CITE.oct],
-  },
-  {
+    // sits ABOVE drugs-alcohol on purpose: both bags contain police+call, and
+    // exact ties resolve by corpus order — "do they call the cops" must land
+    // here, not on a drugs answer
     id: "police",
     q: [
       "Do counsellors call the police?",
@@ -215,6 +220,22 @@ export const CORPUS = [
       "Talking about your feelings, your family, your stress, or your mistakes is not a police matter. If you're worried about something specific, ask the counsellor before you share details — 'would this involve police?' is a fair question and they'll answer it.",
     ],
     cite: [CITE.oct],
+  },
+  {
+    id: "drugs-alcohol",
+    q: [
+      "Will I get in trouble if I tell them about drugs?",
+      "If I say I've been drinking do they call the police?",
+      "Can I talk about vaping without getting suspended?",
+    ],
+    keywords: ["drugs", "consequences", "suspended", "police", "illegal"],
+    topics: ["consequences"],
+    related: ["police", "what-stays-private"],
+    a: [
+      "Counsellors are not the discipline office, and talking to one about drugs or drinking is not the same as being caught. Their job is support, and substance use on its own isn't something they report to police or children's aid.",
+      "It can become a safety issue if it puts you at serious risk — and school rules still exist if something happens on school property. If you're unsure where the line is, ask them first: 'If I talk about this, does it go anywhere?'",
+    ],
+    cite: [CITE.khp, CITE.oct],
   },
   {
     id: "records",
@@ -286,7 +307,7 @@ export const CORPUS = [
       "What happens if I tell them someone has my nudes?",
       "Someone is threatening to share my pictures, will I get in trouble?",
     ],
-    keywords: ["images", "share", "threatening"],
+    keywords: ["images", "share", "threatening", "illegal"],
     topics: ["safety", "consequences"],
     related: ["police", "what-must-report"],
     a: [
@@ -300,6 +321,7 @@ export const CORPUS = [
     q: [
       "Can I ask about pregnancy without my parents knowing?",
       "Are health questions confidential?",
+      "Can I ask about birth control?",
     ],
     keywords: ["health", "knowing", "confidential"],
     topics: ["confidentiality"],
@@ -350,7 +372,7 @@ export const CORPUS = [
       "Does children's aid take kids away?",
       "Will my family get split up if they report?",
     ],
-    keywords: ["childrens-aid", "removed", "split", "away"],
+    keywords: ["childrens-aid", "removed", "split", "away", "foster", "care"],
     topics: ["reporting"],
     related: ["what-happens-after-report", "what-must-report"],
     a: [
@@ -401,7 +423,7 @@ export const CORPUS = [
       "Do I have to talk to the counsellor specifically?",
       "Can I choose which adult I talk to?",
     ],
-    keywords: ["counsellor", "trust", "choose", "different"],
+    keywords: ["counsellor", "trust", "choose", "different", "problem"],
     topics: ["confidentiality"],
     related: ["teacher-vs-counsellor", "adult-is-problem"],
     a: [
@@ -434,8 +456,10 @@ export const CORPUS = [
       "How do I even start talking to a counsellor?",
       "Does seeing the school counsellor cost anything?",
       "Do I need an appointment or a referral?",
+      "Can I bring a friend with me?",
+      "Can I write it down instead of saying it out loud?",
     ],
-    keywords: ["start", "cost", "money", "appointment", "referral", "free"],
+    keywords: ["start", "cost", "money", "appointment", "referral", "free", "email", "text", "see", "bring", "talk"],
     topics: ["getting-started"],
     related: ["counsellor-trust", "what-stays-private"],
     a: [

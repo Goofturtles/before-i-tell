@@ -71,6 +71,7 @@
   font-weight: 600;
   color: var(--c-text);
   padding-top: var(--s-3);
+  border-top: 2px dashed rgba(51, 38, 30, 0.3); /* fallback: color-mix absent on iOS 16.0-16.1 */
   border-top: 2px dashed color-mix(in srgb, var(--ink-line) 30%, transparent);
   line-height: 1.5;
 }
@@ -404,7 +405,10 @@
   line-height: 1.4;
 }
 .slot .hint { font-size: var(--t-body-sm); color: var(--c-text-3); font-weight: 400; }
-.slot textarea, .slot input[type="text"], .slot select {
+/* untyped `input`: the compose email and passphrase fields must get the same
+   dress as text inputs (only text-like inputs ever sit directly in a .slot).
+   font: inherit resolves to 16px — exactly iOS's no-zoom-on-focus threshold. */
+.slot textarea, .slot input, .slot select {
   width: 100%;
   padding: 13px 16px;
   font: inherit;
@@ -434,6 +438,7 @@
   line-height: 1.6;
   margin-bottom: var(--s-4);
   white-space: pre-wrap; /* the scaffold card and sent messages keep their breaks */
+  overflow-wrap: break-word; /* pasted URLs must wrap, not clip */
 }
 /* …but not when the card is a container of real elements rather than text */
 .words-card:has(.link-box), .words-card:has(.term) { white-space: normal; }
@@ -507,6 +512,10 @@
   width: 100%;
   max-width: 560px;
   max-height: min(86vh, 720px);
+  /* svh: vh resolves to the LARGE viewport on phones, but the fixed overlay
+     is sized to the small one while the URL bar shows — which it always does
+     at the moment the takeover fires. Older browsers drop the invalid line. */
+  max-height: min(86svh, 720px);
   overflow-y: auto;
   padding: var(--s-6);
   border-radius: var(--r-card);
@@ -585,6 +594,7 @@
   /* pre-wrap: these also render relayed replies, and a counsellor's paragraphs
      and numbered lists must not collapse into one block */
   white-space: pre-wrap;
+  overflow-wrap: break-word; /* long URLs in replies must wrap, not clip */
   border-left: 4px solid var(--c-accent);
   border-radius: var(--r-input);
   background: var(--c-accent-soft);
@@ -645,13 +655,16 @@
   overflow-y: auto;
   background: var(--c-bg);
   display: grid;
-  place-items: center;
+  justify-items: center;
   padding: var(--s-4);
 }
 .practice__panel {
   width: 100%;
   max-width: 720px;
   padding: var(--s-6) 0;
+  /* auto margins center like place-items did, but keep the TOP of long text
+     reachable through the container's scroll (place-items pushed it off) */
+  margin-block: auto;
 }
 .practice__panel h2 {
   font-family: var(--font-display);
@@ -711,4 +724,25 @@
 @keyframes voice-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.45; }
+}
+
+/* ---- small-phone fixes (audit-caught) ---- */
+/* crisis takeover: the Kids Help Phone number overflowed its route row at
+   <=420px. flex-basis 100% drops the number to its own line — guaranteed
+   fit across mono-font metric differences between devices. Source order
+   matters: this must sit after the base .takeover rules. */
+@media (max-width: 420px) {
+  .takeover__panel { padding: var(--s-4); }
+  .takeover__route { flex-wrap: wrap; }
+  .takeover__route .num { flex-basis: 100%; }
+}
+/* iOS zooms into any focused control under 16px — the link box and the
+   check-in day select were 12/14px */
+@media (max-width: 720px) {
+  .link-box input { font-size: 16px; }
+  .term select { font-size: 16px; }
+}
+/* coarse pointers: topic chips reach ~44px touch height */
+@media (pointer: coarse) {
+  .topic-chip { padding-top: 11px; padding-bottom: 11px; }
 }

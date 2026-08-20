@@ -17,7 +17,7 @@ Built for **Hack for Humanity | Summer 2026** (theme: AI for mental/physical hea
 Three levels, climbed at the user's own speed — every step up is a button only they press:
 
 - **L1 · Ask** — anonymous Q&A about exactly what a school adult must report vs. what stays confidential in Ontario. Answers are *retrieved from a fixed, cited corpus* (23 entries: reporting, confidentiality, coming out, bullying, being believed, "will I be taken away", how to even start…) — never generated. Unknown questions get an honest "I don't know" plus a route to a human.
-- **L2 · Codename** — talk to the school counsellor under a codename, revealing your name only when you choose. Honestly shown as a prototype: it needs a school partnership for the human on the other end.
+- **L2 · Codename** — **live**: write to an adult at your school under a codename ("Blue Heron 41"), through a deployed relay (Render) that only accepts school addresses, intercepts crisis content, and routes replies back to the codename. Neither side learns who the other is. What still needs the real world: school-board adoption so counsellors expect these messages.
 - **L3 · Tell, on your terms** — set the rules for the conversation (what's negotiable is entirely yours; what the law fixes is shown honestly and locked), optionally build your words from your own text, **practice saying them out loud** on a full-screen rehearsal card, and generate an **adult briefing page**: how to listen, plus your specific requests. The disclosure itself is never in the link — it stays yours until you say it out loud.
 
 **Offline as proof.** After the first visit a service worker keeps the whole site on-device: Levels 1 and 3 run in airplane mode. That's the checkable form of "nothing you type leaves your device" — a tool that needed a server couldn't do it.
@@ -57,7 +57,7 @@ Jurisdiction: **Ontario**. The listening guidance is universal; reporting rules 
 
 ## Run it
 
-The site is live at **https://goofturtles.github.io/before-i-tell/** (GitHub Pages, static hosting, `.nojekyll`). On the hosted site, Level 2 shows its honest preview until a relay is deployed — see `relay/README.md`, then paste the relay origin into `PROD_RELAY` in `js/config.js`.
+The site is live at **https://goofturtles.github.io/before-i-tell/** (GitHub Pages, static hosting, `.nojekyll`). Level 2 runs against the deployed relay at `https://bit-relay.onrender.com` (**Render** free tier — `render.yaml` at the repo root is the blueprint; `PROD_RELAY` in `js/config.js` points the site at it). Emptying `PROD_RELAY` cleanly degrades Level 2 back to its labelled preview.
 
 Locally: no build step. ES modules require an HTTP server (file:// won't work):
 

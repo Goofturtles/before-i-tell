@@ -26,25 +26,39 @@ const T3 = [
   // object is "myself" ONLY. The bare "me" form was matching the two most
   // common hyperboles in English — "this homework is killing me", "my mum will
   // kill me" — and Level 2 turns a false positive into a REFUSAL TO SEND, not
-  // just a dismissible dialog. Real suicidality is still caught by the ten
+  // just a dismissible dialog. Real suicidality is still caught by the
   // patterns below (want to die / end it / no point / not be here / …).
-  { id: "t3-self-kill",     fam: "self", re: new RegExp(`\\b(kill(ing)?|end(ing)?|hurt(ing)?)\\s+my\\s*self\\b`, "i") },
-  { id: "t3-self-suicide",  fam: "self", re: /\b(suicid(e|al)|kms\b|unalive)/i },
-  { id: "t3-self-want-die", fam: "self", re: new RegExp(`\\b(want(\\s+to)?|wanna|wish(ed)?\\s+(i|to))\\s+(die|be\\s+dead|was\\s+dead|end\\s+my\\s+life|take\\s+my\\s+own\\s+life)\\b`, "i") },
+  // Leader convention: intent leaders are (want to|wanna|going to|gonna|
+  // plan(ning) to/on|about to) — "gonna X" must never require a literal "to".
+  { id: "t3-self-kill",     fam: "self", re: new RegExp(`\\b(kill(ing)?|end(ing)?|hurt(ing)?|hang(ing)?)\\s+my\\s*self\\b`, "i") },
+  { id: "t3-self-suicide",  fam: "self", re: /\b(suicid(e|al)|kms\b|unalive|sewer\s*slide)/i },
+  { id: "t3-self-want-die", fam: "self", re: new RegExp(`\\b(want(\\s+to)?|wanna|going\\s+to|gonna|plan(ning)?\\s+(to|on)|about\\s+to|wish(ed)?\\s+(i|to))\\s+(die|dying|be\\s+dead|was\\s+dead|end(ing)?\\s+my\\s+life|tak(e|ing)\\s+my\\s+own\\s+life)\\b`, "i") },
   { id: "t3-self-not-here", fam: "self", re: new RegExp(`\\b(don${AP}t|do\\s+not|no\\s+longer)\\s+(want(\\s+to)?|wanna)\\s+(be\\s+(here|alive)|exist|live|wake\\s+up)\\b`, "i") },
-  { id: "t3-self-better",   fam: "self", re: /\bbetter\s+off\s+without\s+me\b/i },
-  { id: "t3-self-end-it",   fam: "self", re: /\b(want|going|gonna|plan(ning)?)\s+to\s+end\s+it(\s+all)?\b/i },
+  { id: "t3-self-better",   fam: "self", re: new RegExp(`\\bbetter\\s+off\\s+(without\\s+me|if\\s+i\\s+was\\s+(gone|dead)|when\\s+i${AP}m\\s+gone)\\b`, "i") },
+  { id: "t3-self-end-it",   fam: "self", re: /\b(want\s+to|wanna|going\s+to|gonna|plan(ning)?\s+(to|on)|about\s+to)\s+end(ing)?\s+it(\s+all)?\b/i },
+  { id: "t3-self-wish",     fam: "self", re: new RegExp(`\\bwish(ed)?\\s+i\\s+(wasn${AP}t\\s+(alive|born)|was\\s+not\\s+(alive|born)|was\\s+never\\s+born)\\b`, "i") },
+  { id: "t3-self-off",      fam: "self", re: /\b(want(\s+to)?|wanna|gonna|going\s+to|thinking\s+(about|of)|might|should)\s+(just\s+)?off\s+my\s*self\b/i },
+  { id: "t3-self-delete",   fam: "self", re: /\b(want(\s+to)?|wanna|gonna|going\s+to|thinking\s+(about|of))\s+(just\s+)?self[\s-]?delete\b/i },
   // The apostrophe here is REQUIRED (['’]d, not AP's optional ['’]?d) — an
   // optional one still lets "od"+"d" match the ordinary word "odd".
-  { id: "t3-self-harm",     fam: "self", re: /\b(cut(ting)?\s+(myself|my\s*self)|self[\s-]?harm(ing)?|hurt\s+myself|od(?:['’]d|ed)?\b|overdos(e|ing|ed))/i },
-  { id: "t3-self-no-point", fam: "self", re: /\b(no\s+point\s+(in\s+)?(living|going\s+on)|nothing\s+to\s+live\s+for)\b/i },
+  // "cut my wrists" keeps the plural: "i cut my wrist on the fence" is an
+  // accident report, "cut my wrists" is not. "slit" has no accidental reading.
+  { id: "t3-self-harm",     fam: "self", re: /\b(cut(ting)?\s+(myself|my\s*self)|self[\s-]?harm(ing)?|hurt\s+myself|slit(ting)?\s+my\s+wrists?|cut(ting)?\s+my\s+wrists|od(?:['’]d|ed)?\b|overdos(e|ing|ed))/i },
+  // lookahead keeps "no reason to live in fear / live with regret" clean
+  { id: "t3-self-no-point", fam: "self", re: /\b(no\s+(point|reason)\s+((in|to)\s+)?(living|live(?!\s+(in|with)\b)|going\s+on)|nothing\s+to\s+live\s+for)\b/i },
   { id: "t3-self-around",   fam: "self", re: new RegExp(`\\b(not|won${AP}t)\\s+(gonna\\s+|going\\s+to\\s+)?be\\s+around\\s+(much\\s+longer|anymore|any\\s+more)\\b`, "i") },
   { id: "t3-self-goodbye",  fam: "self", re: /\b(say(ing)?\s+goodbye\s+to\s+everyone|wrote\s+(a\s+)?(goodbye|final)\s+(note|letter))\b/i },
   { id: "t3-self-gone",     fam: "self", re: /\b(want\s+to|wanna)\s+disappear(\s+forever)?\b/i },
+  // leader-gated: "jump off the diving board" and third-person stay clean
+  { id: "t3-self-jump",     fam: "self", re: new RegExp(`\\b(i${AP}m|im|i\\s+am|want(\\s+to)?|wanna|gonna|going\\s+to|thinking\\s+(about|of))\\s+(gonna\\s+|going\\s+to\\s+)?jump(ing)?\\s+off\\s+(a|the|my)\\s+(bridge|roof|building|balcony)\\b`, "i") },
   // --- ABUSE family ---
-  { id: "t3-abuse-active",  fam: "abuse", re: /\b(my\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|stepfather|stepmother|brother|sister|stepbrother|stepsister|uncle|aunt|cousin|grandpa|grandma|boyfriend|girlfriend|bf|gf|partner|coach|teacher)\s+(hits?|hurts?|beats?|touch(es|ed)?|abus(es|ed)?|hit|beat|slapped|choked|grabbed)\s+me\b/i },
+  // verb list is tense-complete on purpose: present ("chokes me") and past
+  // ("choked me") both fire; sexual-assault verbs included
+  { id: "t3-abuse-active",  fam: "abuse", re: /\b(my\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|stepfather|stepmother|brother|sister|stepbrother|stepsister|uncle|aunt|cousin|grandpa|grandma|boyfriend|girlfriend|bf|gf|partner|coach|teacher)\s+(hits?|hurts?|beats?|touch(es|ed)?|abus(es|ed|ing)?|hit|beat|slap(s|ped)?|chok(e|es|ed|ing)|grab(s|bed)?|punch(es|ed)?|kick(s|ed)?|molest(s|ed)?|rap(es|ed))\s+me\b/i },
+  { id: "t3-abuse-passive", fam: "abuse", re: /\bi\s+(was|got|am\s+being|have\s+been)\s+(raped|molested|sexually\s+(abused|assaulted|touched))\b/i },
+  { id: "t3-abuse-someone", fam: "abuse", re: /\b(someone|somebody)\s+(touch(es|ed)?|molest(s|ed)?|rap(es|ed))\s+me\b/i },
   { id: "t3-abuse-fear",    fam: "abuse", re: new RegExp(`\\b(scared|afraid|terrified)\\s+(that\\s+)?(my\\s+)?(he|she|they|dad|mom|mum|father|mother|stepdad|stepmom|brother|sister|boyfriend|girlfriend|partner)\\s*(${AP}ll|\\s+will|\\s+might|\\s+is\\s+going\\s+to)\\s+(hurt|hit|kill|beat)\\s+me\\b`, "i") },
-  { id: "t3-abuse-unsafe",  fam: "abuse", re: /\bnot\s+safe\s+at\s+home\b/i },
+  { id: "t3-abuse-unsafe",  fam: "abuse", re: new RegExp(`\\b(not|don${AP}t\\s+feel|do\\s+not\\s+feel|never\\s+feel|no\\s+longer\\s+feel)\\s+safe\\s+at\\s+home\\b`, "i") },
 ];
 
 const T2 = [
@@ -68,7 +82,8 @@ function famsOf(matches) {
 
 export const safety = {
   check(text) {
-    const t = String(text || "");
+    // strip zero-width characters (strip, not space: "k​ill" must rejoin)
+    const t = String(text || "").replace(/[​-‍⁠﻿­]/g, "");
     if (!t.trim()) return { tier: 0, matches: [] };
     const m3 = T3.filter((p) => p.re.test(t)).map((p) => p.id);
     if (m3.length) return { tier: 3, matches: m3 };
@@ -185,7 +200,7 @@ export const safety = {
           el("a", { class: "takeover__route", href: "tel:1-800-668-6868" },
             el("span", {}, el("b", {}, "Kids Help Phone"), el("span", {}, "Talk to a real counsellor, 24/7. Anonymous.")),
             el("span", { class: "num" }, "1-800-668-6868")),
-          el("a", { class: "takeover__route", href: "sms:686868?body=CONNECT" },
+          el("a", { class: "takeover__route", href: "sms:686868?&body=CONNECT" },
             el("span", {}, el("b", {}, "Text instead"), el("span", {}, "Text CONNECT — a trained volunteer answers.")),
             el("span", { class: "num" }, "686868")),
           el("a", { class: "takeover__route", href: "tel:988" },
@@ -233,6 +248,10 @@ export const safety = {
   /** which pattern families fired most recently — drives the honest-note branch */
   _lastFams: null,
 
+  /** set by a route handler whose render bailed because the takeover fired —
+      dismissal must then re-resolve the route or the page behind is blank */
+  renderAborted: false,
+
   _dismiss() {
     this._active = false;
     const prev = store.session.get("s") || {};
@@ -247,6 +266,10 @@ export const safety = {
     document.body.style.overflow = "";
     router.unlock();
     renderBanner();
+    if (this.renderAborted) {
+      this.renderAborted = false;
+      router.go(router.current()); // re-runs the handler; clear() now passes via the dismissed branch
+    }
   },
 
   /** on boot: a refresh during an active takeover re-asserts it.
@@ -283,6 +306,6 @@ function renderBanner() {
       el("span", {}, "Whatever is going on, you don't have to figure it out alone. "),
       el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone 1-800-668-6868"),
       el("span", {}, " · "),
-      el("a", { href: "sms:686868?body=CONNECT" }, "text CONNECT to 686868"));
+      el("a", { href: "sms:686868?&body=CONNECT" }, "text CONNECT to 686868"));
   });
 }

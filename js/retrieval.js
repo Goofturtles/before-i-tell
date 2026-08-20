@@ -37,7 +37,10 @@ const docs = CORPUS.map((entry) => {
 const df = new Map();
 docs.forEach(({ bag }) => bag.forEach((t) => df.set(t, (df.get(t) || 0) + 1)));
 const N = docs.length;
-const idf = (t) => 1 + Math.log(N / (df.get(t) || N));
+// unknown words weigh like RARE words (df 1), not common ones (df N): an
+// off-topic query full of words the corpus has never seen must dilute the
+// score toward refusal, not vanish from the denominator
+const idf = (t) => 1 + Math.log(N / (df.get(t) || 1));
 
 /* canonical multi-word phrases get a flat bonus */
 const PHRASES = [
@@ -49,6 +52,9 @@ const PHRASES = [
   // "report a teacher" is about the teacher being the problem — break the
   // tie with teacher-vs-counsellor (whose bag also has report+teacher)
   { re: /\b(report(ing)?|tell\s+on)\s+(a|my|the|our)\s+(teacher|coach|principal|counsellor|counselor)\b/i, token: "staff" },
+  // "how do I actually do this" intent — ties otherwise break on corpus order
+  { re: /\bhow\s+(do|can)\s+i\s+(talk|start|see|ask|book)\b/i, token: "start" },
+  { re: /\bwho\s+(should|can|do)\s+i\s+(talk|tell|go)\b/i, token: "choose" },
 ];
 
 const THRESHOLD = 0.55;

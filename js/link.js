@@ -35,7 +35,7 @@ export const link = {
   encode(selection) {
     const payload = {
       v: TERMS_VERSION,
-      t: (selection.on || []).filter((id) => KNOWN_IDS.has(id)),
+      t: [...new Set((selection.on || []).filter((id) => KNOWN_IDS.has(id)))],
       p: {},
       r: ADULT_ROLES.includes(selection.role) ? selection.role : "other",
     };
@@ -68,10 +68,13 @@ export const link = {
     }
     if (raw.v > TERMS_VERSION) return { ok: false, reason: "newer-version" };
 
-    // sanitize strictly: unknown ids are skipped (never fatal), params validated
+    // sanitize strictly: unknown ids are skipped (never fatal), params
+    // validated, duplicates collapsed — a crafted fragment must not render
+    // the same request card forty times
+    const rawCount = Array.isArray(raw.t) ? raw.t.length : 0;
     const ids = Array.isArray(raw.t) ? raw.t.filter((x) => typeof x === "string") : [];
-    const known = ids.filter((id) => KNOWN_IDS.has(id));
-    const skipped = ids.length - known.length;
+    const known = [...new Set(ids.filter((id) => KNOWN_IDS.has(id)))];
+    const skipped = rawCount - known.length;
 
     const params = {};
     if (raw.p && typeof raw.p === "object") {

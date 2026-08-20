@@ -45,6 +45,10 @@ function makeAPI(storage, ok, mem) {
         else mem.set(PREFIX + key, raw);
         return true;
       } catch {
+        // quota filled mid-session: surface the same gentle banner the
+        // blocked-storage path shows, instead of silently losing drafts
+        store.available = false;
+        if (typeof store.onWriteError === "function") { try { store.onWriteError(); } catch { /* banner is best-effort */ } }
         return false;
       }
     },
@@ -75,6 +79,8 @@ export const store = {
   session: makeAPI(sessionStore, sessionOK, memSession),
   /** false when private browsing / quota blocks persistence — UI shows one gentle banner */
   available: localOK,
+  /** optional hook: fired once writes start failing mid-session (quota) */
+  onWriteError: null,
   /** wipe every bit:* key in BOTH storages ("Delete everything") */
   clearAll() {
     this.clear();

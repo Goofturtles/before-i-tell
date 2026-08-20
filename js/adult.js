@@ -51,7 +51,7 @@ function renderGeneric(container, hasPayload) {
       el("h2", {}, "The hard case — read this before you need it"),
       el("div", { class: "hard-case" },
         el("h3", {}, "What if they ask you not to tell anyone — and it's something you must report?"),
-        el("p", {}, "Honor every request you legally can, and be honest immediately about the one you can't. Something like: \"I'm going to do everything you asked. One thing I can't do is keep this part secret — the law says I have to involve people whose whole job is protecting you. I'll tell you exactly what happens next, and I'm not going anywhere.\""),
+        el("p", {}, "Honour every request you legally can, and be honest immediately about the one you can't. Something like: \"I'm going to do everything you asked. One thing I can't do is keep this part secret — the law says I have to involve people whose whole job is protecting you. I'll tell you exactly what happens next, and I'm not going anywhere.\""),
         el("p", {}, "Under Ontario's Child, Youth and Family Services Act, the duty to report is yours personally — you must call a children's aid society directly and cannot delegate it. For 16–17 year olds, reporting is permitted rather than mandatory, which gives you room to plan next steps together."),
         el("p", { class: "small" },
           "Source: Ontario College of Teachers, Professional Advisory on the Duty to Report; OACAS."))));
@@ -94,8 +94,12 @@ function boot() {
   }
 
   if (result.ok) renderRequests(container, result.payload);
-  // a valid link with zero selected terms is still a valid link — no warning
-  renderGeneric(container, result.ok);
+  // a valid link with zero selected terms is still a valid link — no warning.
+  // The "ask them to re-copy the link" note is for links that actually BROKE
+  // (malformed fragment) — a cold nav visit (no fragment at all) is a normal
+  // way to arrive and must not be told their link looks damaged.
+  const brokenLink = result.ok === false && result.reason === "malformed";
+  renderGeneric(container, !brokenLink);
 
 }
 

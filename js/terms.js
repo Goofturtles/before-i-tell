@@ -105,14 +105,24 @@ export const terms = {
   byId(id) { return CATALOG.find((t) => t.id === id) || null; },
 
   load() {
-    const saved = store.get("terms");
-    if (saved && saved.v === TERMS_VERSION) return saved;
-    return {
+    const def = {
       v: TERMS_VERSION,
       on: CATALOG.filter((t) => t.kind === "negotiable" && t.default).map((t) => t.id),
       params: {},
       name: "",
       role: "counsellor",
+    };
+    const saved = store.get("terms");
+    if (!saved || saved.v !== TERMS_VERSION) return def;
+    // field-by-field over defaults: hand-edited or corrupt storage must never
+    // brick the flow (a bad `on` crashed /tell/terms permanently). Junk ids
+    // inside a valid array are fine — every consumer tolerates them.
+    return {
+      v: TERMS_VERSION,
+      on: Array.isArray(saved.on) ? saved.on : def.on,
+      params: saved.params && typeof saved.params === "object" && !Array.isArray(saved.params) ? saved.params : {},
+      name: typeof saved.name === "string" ? saved.name : "",
+      role: typeof saved.role === "string" ? saved.role : "counsellor",
     };
   },
 

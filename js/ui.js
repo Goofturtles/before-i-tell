@@ -218,8 +218,12 @@ export function bootPage(store) {
   /* offline shell: after the first visit, Levels 1 and 3 run with the network
      off — the provable form of "nothing you type leaves your device". The SW
      caches only the app's own files, never anything a user enters. Private
-     windows and old browsers just skip this; the site works identically. */
+     windows and old browsers just skip this; the site works identically.
+     Registered after load: the ~30-file install burst must not compete with
+     the first paint. */
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => { /* file://, permissions: site still works online */ });
+    addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => { /* file://, permissions: site still works online */ });
+    });
   }
 }

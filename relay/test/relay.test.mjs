@@ -153,10 +153,12 @@ ok("empty message refused", empty.json.reason === "empty");
 const health = await (await fetch(`${BASE}/health`)).json();
 ok("health reports dry mode", health.ok === true && health.mode === "dry");
 
+// cap is 120/h (venue WiFi shares one egress IP — see server.js); distinct
+// recipients so the per-recipient caps don't fire first
 let limited = false;
-for (let i = 0; i < 9; i++) {
+for (let i = 0; i < 130; i++) {
   const r = await post("/send", { to: `c${i}@ddsb.ca`, message: "hello there" });
-  if (r.status === 429) { limited = true; break; }
+  if (r.status === 429 && r.json.reason === "rate") { limited = true; break; }
 }
 ok("per-IP send limit engages", limited);
 
@@ -183,7 +185,12 @@ for (const benign of [
 }
 // …while real crisis language still is
 for (const real of ["i want to kill myself", "i have been cutting myself", "i od'd last night",
-                    "i think i overdosed", "self harm", "i want to die"]) {
+                    "i think i overdosed", "self harm", "i want to die",
+                    // hackathon-audit additions (verified real teen phrasings that used to slip through)
+                    "gonna end it all", "im going to end my life", "i want to hang myself",
+                    "i want to off myself", "no reason to live", "want to slit my wrists",
+                    "he raped me", "i was raped", "my uncle molested me", "someone touched me",
+                    "i don't feel safe at home", "my dad chokes me"]) {
   ok(`still a crisis: ${JSON.stringify(real.slice(0, 34))}`, checkTier3(real).tier === 3);
 }
 

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Before I Tell — page not found</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fdf9f3">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#201914">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='38' rx='14' fill='%23c2410c'/%3E%3Cpath d='M20 48 L20 58 L32 48 Z' fill='%23c2410c'/%3E%3Ccircle cx='22' cy='29' r='4' fill='white'/%3E%3Ccircle cx='42' cy='29' r='4' fill='white' opacity='.55'/%3E%3C/svg%3E">
+  <script>
+    (function () {
+      document.documentElement.classList.add("js");
+      try {
+        var t = JSON.parse(localStorage.getItem("bit:theme"));
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) { /* system preference applies */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="/before-i-tell/css/tokens.css">
+  <link rel="stylesheet" href="/before-i-tell/css/base.css">
+  <link rel="stylesheet" href="/before-i-tell/css/components.css">
+</head>
+<body>
+  <main class="app-main">
+    <div class="app-view">
+      <div class="step-head">
+        <p class="eyebrow">Before I Tell</p>
+        <h1 class="head-md">That page isn't here.</h1>
+        <p class="lead">The link may be mistyped or out of date. Everything real lives on these three pages:</p>
+      </div>
+      <div class="btn-row">
+        <a class="btn btn--primary" href="/before-i-tell/">What this is</a>
+        <a class="btn btn--secondary" href="/before-i-tell/app.html">Start — it's anonymous</a>
+        <a class="btn btn--ghost" href="/before-i-tell/adult.html">Guidance for adults</a>
+      </div>
+      <p class="small muted" style="margin-top:48px">If someone sent you a link to prepare for a conversation, ask them to copy it again — the whole link, including everything after the # sign.</p>
+    </div>
+  </main>
+  <aside class="crisis" aria-label="Crisis support">
+    <div class="crisis__inner">
+      <span class="crisis__label">Need someone right now?</span>
+      <a href="tel:1-800-668-6868">Kids Help Phone 1-800-668-6868</a>
+      <a href="sms:686868?body=CONNECT">Text CONNECT to 686868</a>
+      <a href="tel:988">Call or text 9-8-8</a>
+    </div>
+  </aside>
+</body>
+</html>

@@ -27,7 +27,7 @@ export const NEED_OPTIONS = [
 
 export const scaffold = {
   load() {
-    return store.get("words") || {
+    const def = {
       who: WHO_OPTIONS[0],
       opener: OPENERS[0],
       openerCustom: "",
@@ -35,6 +35,19 @@ export const scaffold = {
       theThing: "",
       need: "listen",
     };
+    const saved = store.get("words");
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return def;
+    const out = { ...def, ...saved };
+    // corrupt storage must not brick review/assembly: every string field a
+    // consumer calls .trim() on must actually be a string. Dropdown values
+    // that no longer exist (copy edits) fall back to the current defaults.
+    for (const k of ["who", "opener", "openerCustom", "topicHint", "theThing", "need", "closing"]) {
+      if (k in out && typeof out[k] !== "string") out[k] = typeof def[k] === "string" ? def[k] : "";
+    }
+    if (!WHO_OPTIONS.includes(out.who)) out.who = def.who;
+    if (!OPENERS.includes(out.opener)) out.opener = def.opener;
+    if (out.closing !== undefined && !CLOSINGS.includes(out.closing)) delete out.closing;
+    return out;
   },
 
   save(values) {
@@ -67,10 +80,22 @@ export const scaffold = {
     const requests = (selection?.on || [])
       .map((id) => catalog.find((t) => t.id === id))
       .filter(Boolean)
-      .map((t) => (typeof t.student === "string" ? t.student : ""))
+      .map((t) => {
+        let s = typeof t.student === "string" ? t.student : "";
+        // param terms end in "on…" — fill in the chosen value ("on Thursday")
+        // rather than reading a dangling ellipsis out loud
+        if (t.param) {
+          const v = selection?.params?.[t.param.name];
+          s = v ? s.replace(/…$/, ` ${v}`) : s.replace(/\s*on…$/, "").replace(/…$/, "");
+        }
+        return s;
+      })
       .filter(Boolean);
     if (requests.length) {
-      parts.push("A few things that would help me get through this: " + requests.map((r) => r.replace(/\.$/, "").toLowerCase()).join("; ") + ".");
+      // lowercase only the first character, and never the pronoun "I" —
+      // "until i'm done" reads as sloppy in the student's own rehearsal card
+      parts.push("A few things that would help me get through this: "
+        + requests.map((r) => r.replace(/\.$/, "").replace(/^(?!I\b)./, (c) => c.toLowerCase())).join("; ") + ".");
     }
 
     const closing = values.closing || CLOSINGS[0];

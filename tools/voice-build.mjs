@@ -56,7 +56,7 @@ Four. Let silence happen. If they go quiet or cry, wait. The pause is part of th
 
 Five. End with what happens next — decided together. Name one concrete next step, however small, and when you'll check in. Uncertainty after disclosure is where regret grows.
 
-And the hard case. What if they ask you not to tell anyone — and it's something you must report? Honor every request you legally can, and be honest immediately about the one you can't. Something like: I'm going to do everything you asked. One thing I can't do is keep this part secret — the law says I have to involve people whose whole job is protecting you. I'll tell you exactly what happens next. And I'm not going anywhere.
+And the hard case. What if they ask you not to tell anyone — and it's something you must report? Honour every request you legally can, and be honest immediately about the one you can't. Something like: I'm going to do everything you asked. One thing I can't do is keep this part secret — the law says I have to involve people whose whole job is protecting you. I'll tell you exactly what happens next. And I'm not going anywhere.
 
 However they chose to tell you — they chose you. That means something. Take a breath. You're ready.`;
 

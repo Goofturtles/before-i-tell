@@ -44,6 +44,9 @@ export async function relayPost(path, payload, { timeoutMs = 45000 } = {}) {
       credentials: "omit",
       referrerPolicy: "no-referrer",
     });
+    // a gateway error (Render edge answering for a dead/waking instance) is
+    // as uncertain as a timeout — the request may have reached the app
+    if (!res.ok && res.status >= 502) return { ok: false, reason: "timeout" };
     return await res.json();
   } catch (err) {
     // a timeout is NOT "nothing was sent" — the request may have arrived and

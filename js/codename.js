@@ -18,10 +18,10 @@ import { relayPost, warmRelay, RELAY_ENABLED } from "./config.js";
 
 const REFUSALS = {
   personal: "That's a personal email address. Level 2 only writes to school accounts — that rule is what stops this from becoming a way to send anonymous messages to anyone. Use your counsellor's school address.",
-  unknown: "That doesn't look like a school address. If your school's domain isn't recognised yet, Level 3 gets you a page you can hand the adult in person — no email needed.",
+  unknown: "That doesn't look like a school address. If your school's domain isn't recognized yet, Level 3 gets you a page you can hand the adult in person — no email needed.",
   malformed: "That doesn't look like an email address. Check it and try again.",
   blocked: "That address has asked not to receive messages from Before I Tell. Try another adult at your school, or use Level 3.",
-  rate: "That's a lot of messages in a short time. Give it an hour.",
+  rate: "This network has sent a lot of messages in the past hour — on school or event Wi-Fi, everyone counts together. Wait a bit, or switch to mobile data.",
   rate_recipient: "That address has already received several messages today. Give it a day.",
   too_long: "That's longer than a first message needs to be. Trim it a bit.",
   empty: "Write something first.",
@@ -29,6 +29,7 @@ const REFUSALS = {
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
+  capacity: "The relay has hit its daily sending limit — nothing was sent. It resets within 24 hours. If this can't wait, Level 3 needs no email, and Kids Help Phone (1-800-668-6868) answers right now.",
 };
 
 let mount = null;
@@ -55,14 +56,45 @@ function note(text) {
   return el("p", { class: "decode-note" }, text);
 }
 
+/** Refusals that offer a way out render as rich notes with a real link —
+    "use Level 3" as plain text is a dead end on a phone. */
+function refusalNote(status, reason) {
+  clearNode(status);
+  if (reason === "personal" || reason === "unknown") {
+    status.append(el("div", { class: "decode-note" },
+      el("p", { style: "margin:0 0 8px" }, REFUSALS[reason]),
+      el("p", { style: "margin:0" },
+        el("a", { href: "#/tell" }, "Go to Level 3"),
+        " — it prepares the conversation with no email at all.")));
+    return;
+  }
+  status.append(note(REFUSALS[reason] || "Something went wrong. Nothing was sent."));
+}
+
+/** During a cold start the free-tier relay can take up to a minute to wake —
+    without a note, "Sending…" for 30s reads as broken. */
+function slowNote(status) {
+  return setTimeout(() => {
+    status.append(note("Still connecting — this runs on a free server that falls asleep between visitors, and waking it can take up to a minute. Your words are still right here."));
+  }, 5000);
+}
+
 /** The relay refuses to email crisis content — correct, but a bare refusal is a
     dead end for someone who was reaching out. Raise the takeover AND leave a
     signposted fork behind it, so dismissing the dialog doesn't strand them in
     front of a Send button that will never work. */
-function crisisFork(status, { raise = true } = {}) {
+function crisisFork(status, { raise = true, fam } = {}) {
+  // the relay's check may out-know the client's (patterns drift) — its family
+  // verdict must drive the honest-note branch, or an abused student could be
+  // shown the "doesn't trigger children's aid" copy
+  if (fam === "self" || fam === "abuse") {
+    safety._lastFams = new Set([fam]);
+    const prev = store.session.get("s") || {};
+    store.session.set("s", { ...prev, fam });
+  }
   // raise=false when safety.clear() already put the dialog up; and never
   // re-raise for someone who has explicitly said "I'm safe right now"
-  if (raise && !safety._dismissed()) safety.takeover("first");
+  if (raise && !safety._dismissed()) safety.takeover(safety._everFired() ? "again" : "first");
   clearNode(status);
   status.append(
     el("div", { class: "answer-card", style: "margin-top:16px" },
@@ -71,7 +103,7 @@ function crisisFork(status, { raise = true } = {}) {
           "It reads like you might not be safe right now, and an email can sit unread in an inbox for a day. That's the wrong speed for this."),
         el("p", {}, "The people on those numbers answer immediately, and they're anonymous too: ",
           el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone 1-800-668-6868"), " · ",
-          el("a", { href: "sms:686868?body=CONNECT" }, "text CONNECT to 686868"), "."),
+          el("a", { href: "sms:686868?&body=CONNECT" }, "text CONNECT to 686868"), "."),
         el("p", {}, el("b", {}, "If that's not what you meant, "),
           "you can reword it and send again — or use ",
           el("a", { href: "#/tell" }, "Level 3"), " to set up talking in person instead."))));
@@ -138,7 +170,10 @@ function renderCompose() {
 
     sendBtn.disabled = true;
     sendBtn.textContent = "Sending…";
+    const slow = slowNote(status);
     const res = await relayPost("/send", { to, message });
+    clearTimeout(slow);
+    clearNode(status);
     sendBtn.disabled = false;
     sendBtn.textContent = "Send it";
 
@@ -147,8 +182,8 @@ function renderCompose() {
       renderCreated(res);
       return;
     }
-    if (res.reason === "crisis") { crisisFork(status); return; }
-    status.append(note(REFUSALS[res.reason] || "Something went wrong. Nothing was sent."));
+    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam }); return; }
+    refusalNote(status, res.reason);
   });
 
   mount.append(
@@ -211,7 +246,20 @@ function renderCreated(res) {
         el("p", {}, el("b", {}, "If things get heavy while you wait: "), "Kids Help Phone, ", el("a", { href: "tel:1-800-668-6868" }, "1-800-668-6868"), ", answers right now, anonymously."))),
 
     el("div", { class: "btn-row" },
-      el("button", { class: "btn btn--primary", type: "button", onclick: () => openThread(res.tag, res.pass) }, "Open the conversation"),
+      el("button", {
+        class: "btn btn--primary", type: "button",
+        onclick: (e) => {
+          const b = e.currentTarget;
+          b.disabled = true;
+          b.textContent = "Opening…";
+          openThread(res.tag, res.pass, () => {
+            // stay HERE: this screen holds the once-shown passphrase
+            b.disabled = false;
+            b.textContent = "Open the conversation";
+            confirm.textContent = "Couldn't open it just now — your passphrase above still works. Try again in a minute.";
+          });
+        },
+      }, "Open the conversation"),
       el("a", { class: "btn btn--ghost", href: "#/" }, "Done for now")));
 }
 
@@ -226,12 +274,17 @@ function renderResume(saved) {
   goBtn.addEventListener("click", async () => {
     clearNode(status);
     goBtn.disabled = true;
+    goBtn.textContent = "Opening…"; // .btn--primary paints over UA disabled greying
+    const slow = slowNote(status);
     const res = await relayPost("/thread", {
       tag: saved.tag || undefined,
       codename: nameInput.value.trim(),
       pass: passInput.value.trim(),
     });
+    clearTimeout(slow);
+    clearNode(status);
     goBtn.disabled = false;
+    goBtn.textContent = "Open it";
     if (res.ok) {
       saveState({ tag: res.tag, codename: res.codename, to: res.to });
       renderThread(res, passInput.value.trim());
@@ -255,9 +308,12 @@ function renderResume(saved) {
       el("button", { class: "btn btn--secondary", type: "button", onclick: renderIntro }, "Back")));
 }
 
-async function openThread(tag, pass) {
+/** onFail keeps the CURRENT screen alive — a failed refresh must never
+    destroy the once-shown passphrase screen behind an unexplained login form */
+async function openThread(tag, pass, onFail) {
   const res = await relayPost("/thread", { tag, pass });
   if (res.ok) renderThread(res, pass);
+  else if (onFail) onFail(res);
   else renderResume(state());
 }
 
@@ -276,11 +332,19 @@ function renderThread(thread, pass) {
     if (!safety.clear(message)) { crisisFork(status, { raise: false }); return; }
     replyBtn.disabled = true;
     replyBtn.textContent = "Sending…";
+    const slow = slowNote(status);
     const res = await relayPost("/send", { tag: thread.tag, pass, message });
+    clearTimeout(slow);
+    clearNode(status);
     replyBtn.disabled = false;
     replyBtn.textContent = "Send reply";
-    if (res.ok) { openThread(thread.tag, pass); return; }
-    if (res.reason === "crisis") { crisisFork(status); return; }
+    if (res.ok) {
+      openThread(thread.tag, pass, () => {
+        status.append(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment."));
+      });
+      return;
+    }
+    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam }); return; }
     status.append(note(REFUSALS[res.reason] || "Couldn't send that."));
   });
 
@@ -297,7 +361,11 @@ function renderThread(thread, pass) {
       el("p", { class: "lead" },
         thread.adultReplied
           ? "Read it whenever you're ready. You can answer, or not."
-          : "Nothing yet. Counsellors are usually teaching or in meetings — a day is normal.")),
+          : "Nothing yet. Counsellors are usually teaching or in meetings — a day is normal."),
+      thread.adultReplied ? null : el("p", { class: "small muted", style: "margin-top:8px" },
+        "If a few school days pass with nothing, don't assume you were read and ignored — school email filters sometimes hold mail from senders they don't recognize, so the adult may never have seen it. ",
+        el("a", { href: "#/tell" }, "Level 3"),
+        " (no email at all), or a fresh message to a different adult, gets around a filter.")),
     el("div", {}, bubbles),
     el("div", { class: "slot", style: "margin-top:24px" },
       el("label", { for: "cn-reply" }, "Your reply"),
@@ -305,7 +373,12 @@ function renderThread(thread, pass) {
     status,
     el("div", { class: "btn-row" },
       replyBtn,
-      el("button", { class: "btn btn--secondary", type: "button", onclick: () => openThread(thread.tag, pass) }, "Refresh"),
+      el("button", {
+        class: "btn btn--secondary", type: "button",
+        onclick: () => openThread(thread.tag, pass, () => {
+          status.append(note("Couldn't refresh just now. Try again in a minute — nothing was lost."));
+        }),
+      }, "Refresh"),
       el("a", { class: "btn btn--ghost", href: "#/" }, "Back")));
 }
 

@@ -33,7 +33,7 @@
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/print.css">
+  <link rel="stylesheet" href="css/print.css" media="print">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -42,12 +42,12 @@
     <div class="nav__inner">
       <a class="nav__brand" href="index.html">
         <svg class="nav__mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="38" rx="14" fill="currentColor"/><path d="M20 48 L20 58 L32 48 Z" fill="currentColor"/><circle cx="22" cy="29" r="4" fill="var(--c-bg)"/><circle cx="42" cy="29" r="4" fill="var(--c-bg)" opacity=".55"/></svg>
-        Before I Tell
+        <span class="nav__brand-name">Before I Tell</span>
       </a>
       <div class="nav__links">
         <a href="index.html" aria-current="page">About</a>
         <a href="adult.html">For adults</a>
-        <a href="#crisis" class="nav__crisis">Need help now?</a>
+        <a href="#crisis" class="nav__crisis"><span class="nav__crisis-long">Need help now?</span><span class="nav__crisis-short">Help now</span></a>
         <a class="btn btn--primary nav__cta" href="app.html">Start</a>
         <button class="theme-toggle motion-toggle" type="button" aria-pressed="false" aria-label="Pause animations">
           <svg class="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
@@ -197,7 +197,7 @@
             </span>
             <span class="ladder__level">Level 2</span>
             <h3>Codename</h3>
-            <p>Write to an adult at your school as "Blue Heron 41" instead of you. It lands in their inbox, they can write back, and their reply comes to your codename. Your name stays yours until you press the button that shares it. School addresses only.</p>
+            <p>Write to an adult at your school as "Blue Heron 41" instead of you. It lands in their inbox, they can write back, and their reply comes to your codename. Your name stays yours until you choose to tell them. School addresses only.</p>
             <span class="ladder__cost">Costs you: almost nothing.</span>
           </div>
           <div class="ladder__card ladder__card--3 fly-r">
@@ -264,7 +264,7 @@
           </div>
           <div class="refusal reveal reveal--s1">
             <span class="refusal__mark" aria-hidden="true">✕</span>
-            <div><b>Never sends anything you didn't write and press send on.</b><p>No auto-alerts, no "we noticed you seem sad" emails to anyone. Every message, every reveal, every step is a button only you press.</p></div>
+            <div><b>Never sends anything you didn't write and press send on.</b><p>No auto-alerts, no "we noticed you seem sad" emails to anyone. Every message, every step is a button only you press.</p></div>
           </div>
           <div class="refusal reveal reveal--s1">
             <span class="refusal__mark" aria-hidden="true">✕</span>
@@ -308,7 +308,7 @@
           </div>
           <div class="evidence__item fly-r">
             <span class="evidence__stat"><span class="count" data-to="2" aria-hidden="true"><span class="count-real">2</span></span><span class="vh">2</span> fears</span>
-            <p>For self-harm specifically, two fears decide whether anyone hears about it: confidentiality breaches, and being seen as "attention-seeking".</p>
+            <p>decide whether anyone hears about self-harm: confidentiality breaches, and being seen as "attention-seeking".</p>
             <cite>Rowe et al., 2014 — systematic review of help-seeking for adolescent self-harm</cite>
           </div>
         </div>
@@ -321,12 +321,6 @@
         <p class="eyebrow reveal">Fair questions</p>
         <h2 class="head-md reveal">Asked and answered</h2>
         <div class="faq reveal reveal--s2">
-          <details>
-            <summary>Doesn't showing the rules teach kids to strategically avoid reporting?</summary>
-            <div>
-              <p>Research on disclosure says the opposite: what stops young people from telling anyone is <em>uncertainty</em>, not information. People who know exactly what happens next tell more, not less — and the ones who fear an ambush stay silent entirely. Informed consent isn't a loophole; it's the reason to speak at all.</p>
-            </div>
-          </details>
           <details>
             <summary>Is this private? Really?</summary>
             <div>
@@ -346,6 +340,19 @@
             <summary>Why should I trust the answers?</summary>
             <div>
               <p>Because they're not generated — they're retrieved from a fixed set of sources (Ontario's child-protection law, the Ontario College of Teachers' guidance, the provincial privacy commissioner, Kids Help Phone), and every answer links its source. When your question isn't covered, it says "I don't know" and points you to a human. A tool for this subject should refuse to guess.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What if I message someone and they never reply?</summary>
+            <div>
+              <p>Honestly: codename messages ride ordinary school email, and a school's spam filter can quarantine mail from a sender it doesn't recognize — meaning the adult may never have seen it at all. Silence after a few school days more likely means <em>unseen</em> than <em>ignored</em>.</p>
+              <p>The ways around a filter: message a different adult, or use Level 3 — it involves no email at all.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Doesn't showing the rules teach kids to strategically avoid reporting?</summary>
+            <div>
+              <p>Research on disclosure says the opposite: what stops young people from telling anyone is <em>uncertainty</em>, not information. People who know exactly what happens next tell more, not less — and the ones who fear an ambush stay silent entirely. Informed consent isn't a loophole; it's the reason to speak at all.</p>
             </div>
           </details>
           <details>
@@ -387,7 +394,7 @@
     <div class="crisis__inner">
       <span class="crisis__label">Need someone right now?</span>
       <a href="tel:1-800-668-6868">Kids Help Phone 1-800-668-6868</a>
-      <a href="sms:686868?body=CONNECT">Text CONNECT to 686868</a>
+      <a href="sms:686868?&body=CONNECT">Text CONNECT to 686868</a>
       <a href="tel:988">Call or text 9-8-8</a>
       <span class="muted">In immediate danger: 911</span>
     </div>
@@ -468,7 +475,7 @@
        the next visit, which is the honest trade. */
     const video = document.querySelector(".story-video");
     const story = document.querySelector(".story");
-    if (video && story && motionOn()) {
+    const initStory = () => {
       if (CSS.supports("animation-timeline: view()")) {
         // Scrubbing needs a seekable source. Servers without Range support
         // (python http.server, some static hosts) report seekable [0,0] and
@@ -503,6 +510,17 @@
         video.loop = true;
         startClip(video);
       }
+    };
+    if (video && story && motionOn()) {
+      // ~1MB scrub must not race the hero: fetch only when the story scene
+      // approaches (two viewports out), mirroring the CTA pattern above
+      const storyIO = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          storyIO.disconnect();
+          initStory();
+        }
+      }, { rootMargin: "200% 0px" });
+      storyIO.observe(story);
     }
   </script>
 </body>

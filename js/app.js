@@ -93,6 +93,17 @@ const render = {
   home() {
     clearNode(view);
     const draft = store.get("terms");
+    const words = store.get("words");
+    const cn = store.get("cn");
+    // "You have a draft" only when they actually changed something — the
+    // default auto-save alone marks every window-shopper as having a draft
+    const defaultOn = new Set(CATALOG.filter((t) => t.kind === "negotiable" && t.default).map((t) => t.id));
+    const draftStarted = Boolean(draft && (
+      (Array.isArray(draft.on) && (draft.on.length !== defaultOn.size || draft.on.some((id) => !defaultOn.has(id))))
+      || (typeof draft.name === "string" && draft.name.trim())
+      || Object.keys(draft.params || {}).length
+      || words
+    ));
     view.append(
       el("div", { class: "step-enter" },
         el("div", { class: "step-head" },
@@ -111,9 +122,11 @@ const render = {
             el("span", { class: "chooser__num" }, "L2"),
             el("span", { class: "chooser__body" },
               el("b", {}, "Codename"),
-              el("span", {}, RELAY_ENABLED
-                ? "Write to an adult at your school as a codename, not your name. They can write back. School addresses only."
-                : "Talk to your school's counsellor under a code, not your name. Preview — no relay connected here.")),
+              el("span", {}, cn?.tag && cn?.codename
+                ? `You're ${cn.codename}. Open your conversation — a reply may be waiting.`
+                : RELAY_ENABLED
+                  ? "Write to an adult at your school as a codename, not your name. They can write back. School addresses only."
+                  : "Talk to your school's counsellor under a code, not your name. Preview — no relay connected here.")),
             el("span", { class: "chooser__arrow", "aria-hidden": "true" }, "→")),
           el("a", { class: "chooser__card", href: "#/tell" },
             el("span", { class: "chooser__num" }, "L3"),
@@ -121,7 +134,7 @@ const render = {
               el("b", {}, "Tell — on your terms"),
               el("span", {}, "Set the rules for the conversation, find your words, and prepare the adult before you speak.")),
             el("span", { class: "chooser__arrow", "aria-hidden": "true" }, "→"))),
-        draft
+        draftStarted
           ? el("div", { class: "resume-card" },
               el("span", {}, el("b", {}, "You have a draft. "), "Your terms are saved on this device."),
               el("span", { class: "spacer" }),
@@ -333,8 +346,14 @@ const render = {
 
     // safety check BEFORE clearing the view: if the takeover fires, the prior
     // screen stays intact behind it and after "I'm safe" (invariant: nothing
-    // unchecked reaches assembly output)
-    if (hasWords && !safety.clear([values.openerCustom, values.topicHint, values.theThing].join(" "))) return;
+    // unchecked reaches assembly output). renderAborted tells _dismiss to
+    // re-resolve the route — otherwise a direct landing on #/tell/review
+    // (fresh tab, bookmark) dismisses to a BLANK page: hash says review,
+    // view was never rendered.
+    if (hasWords && !safety.clear([values.openerCustom, values.topicHint, values.theThing, selection.name].join(" "))) {
+      safety.renderAborted = true;
+      return;
+    }
     clearNode(view);
 
     const nameInput = el("input", {
@@ -343,6 +362,7 @@ const render = {
       value: selection.name || "",
       oninput: (e) => { selection.name = e.target.value; terms.save(selection); },
     });
+    safety.guard(nameInput); // every free-text input is guarded — no exceptions
 
     store.set("reviewed", true);
 
@@ -410,7 +430,15 @@ const render = {
               const ok = await copyText(url, urlInput);
               confirm.textContent = ok ? "Copied." : "Press Ctrl/Cmd-C to copy.";
             },
-          }, "Copy")),
+          }, "Copy"),
+          // the OS share sheet, where it exists — on a phone, copy-paste is
+          // the clumsy path. No request leaves; the sheet IS the OS.
+          navigator.share
+            ? el("button", {
+                class: "btn btn--secondary", type: "button",
+                onclick: () => navigator.share({ url }).catch(() => { /* cancelled */ }),
+              }, "Share")
+            : null),
         confirm,
         el("div", { class: "answer-card", style: "margin-top:24px" },
           el("div", { class: "answer-body" },
@@ -435,6 +463,14 @@ function guard(route) {
 }
 
 bootPage(store);
+
+// quota fills mid-session: show the same gentle banner blocked storage gets,
+// instead of silently losing drafts
+store.onWriteError = () => {
+  if ($("#view .decode-note")) return;
+  view.prepend(el("p", { class: "decode-note" },
+    "Heads up: this browser just stopped saving (storage full?). Everything still works — it just won't remember new changes."));
+};
 
 // order matters: the router must render its first view BEFORE safety.restore
 // can lock it — otherwise a refresh mid-takeover leaves a blank page behind

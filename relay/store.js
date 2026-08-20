@@ -13,7 +13,13 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+// async on purpose: scryptSync (~20ms fast CPU, worse on the free tier) on
+// the auth hot path froze the single-threaded instance for EVERY user under
+// an auth flood. The libuv threadpool absorbs it instead.
+const scrypt = promisify(scryptCb);
 
 const DATA_DIR = process.env.BIT_DATA_DIR || join(process.cwd(), "data");
 const DATA_FILE = join(DATA_DIR, "threads.json");
@@ -79,13 +85,13 @@ export function prune() {
 
 /* ---------------- passphrase ---------------- */
 
-function hashPass(pass, salt) {
-  return scryptSync(String(pass), salt, 32).toString("hex");
+async function hashPass(pass, salt) {
+  return (await scrypt(String(pass), salt, 32)).toString("hex");
 }
 
-export function verifyPass(thread, pass) {
+export async function verifyPass(thread, pass) {
   if (!thread?.passHash || !thread?.passSalt) return false;
-  const candidate = Buffer.from(hashPass(pass, thread.passSalt), "hex");
+  const candidate = Buffer.from(await hashPass(pass, thread.passSalt), "hex");
   const stored = Buffer.from(thread.passHash, "hex");
   if (candidate.length !== stored.length) return false;
   return timingSafeEqual(candidate, stored);
@@ -114,7 +120,7 @@ export function makePassphrase() {
 
 /* ---------------- threads ---------------- */
 
-export function newThread({ to, domain, codename }) {
+export async function newThread({ to, domain, codename }) {
   const tag = randomBytes(9).toString("hex"); // 18 chars, unguessable in a Reply-To
   const pass = makePassphrase();
   const salt = randomBytes(16).toString("hex");
@@ -122,7 +128,7 @@ export function newThread({ to, domain, codename }) {
     tag,
     codename: codename || makeCodename(),
     passSalt: salt,
-    passHash: hashPass(pass, salt),
+    passHash: await hashPass(pass, salt),
     to,
     domain,
     createdAt: Date.now(),
