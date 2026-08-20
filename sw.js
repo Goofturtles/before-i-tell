@@ -81,8 +81,12 @@ self.addEventListener("fetch", (e) => {
             const copy = res.clone();
             // key by pathname only — putting the full ?fbclid=… URL while
             // matching with ignoreSearch lets an old variant shadow every
-            // later refresh (Cache entries match in insertion order)
-            caches.open(VERSION).then((cache) => cache.put(url.origin + url.pathname, copy)).catch(() => { /* quota: serve live, skip cache */ });
+            // later refresh (Cache entries match in insertion order).
+            // waitUntil: the put itself must outlive the response, or the
+            // worker can be killed before the refresh actually lands.
+            e.waitUntil(
+              caches.open(VERSION).then((cache) => cache.put(url.origin + url.pathname, copy)).catch(() => { /* quota: serve live, skip cache */ })
+            );
           }
           return res;
         })
