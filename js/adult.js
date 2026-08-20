@@ -8,6 +8,7 @@ import { store } from "./store.js";
 import { $, el, clearNode, bootPage } from "./ui.js";
 import { link } from "./link.js";
 import { terms } from "./terms.js";
+import { voice } from "./voice.js";
 
 const ROLE_COPY = {
   counsellor: "a student",
@@ -73,13 +74,16 @@ function boot() {
   const who = result.ok && result.payload.n ? result.payload.n : null;
   const roleWord = result.ok ? (ROLE_COPY[result.payload.r] || ROLE_COPY.other) : ROLE_COPY.other;
 
-  container.append(
-    el("div", { class: "step-head" },
-      el("p", { class: "eyebrow" }, "Before I Tell · For the adult"),
-      el("h1", { class: "head-md" },
-        who ? `${who} is about to tell you something hard.` : `Someone is about to tell you something hard.`),
-      el("p", { class: "lead" },
-        `This page was prepared by ${who ? "them" : roleWord} to help the conversation go well. It takes two minutes to read. What they have to say is not in this page — it stays theirs, until they say it.`)));
+  const head = el("div", { class: "step-head" },
+    el("p", { class: "eyebrow" }, "Before I Tell · For the adult"),
+    el("h1", { class: "head-md" },
+      who ? `${who} is about to tell you something hard.` : `Someone is about to tell you something hard.`),
+    el("p", { class: "lead" },
+      `This page was prepared by ${who ? "them" : roleWord} to help the conversation go well. It takes two minutes to read. What they have to say is not in this page — it stays theirs, until they say it.`));
+  // pre-recorded narration, if generated: the pace of the voice IS part of
+  // the lesson — unhurried, the way the page asks the adult to be
+  voice.attach(head, "adult-briefing", "Listen to this page");
+  container.append(head);
 
   if (result.ok === false && result.reason === "newer-version") {
     container.append(el("p", { class: "decode-note" },

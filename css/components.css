@@ -683,3 +683,32 @@
 @media (prefers-reduced-motion: no-preference) {
   html:not(.motion-off) .practice__panel { animation: takeover-in 0.4s var(--ease-apple-out) both; }
 }
+
+/* --- voice: optional pre-recorded "Listen" buttons (js/voice.js) --- */
+.answer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.answer-head h2 { flex: 1 1 24ch; }
+.voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.voice-icon { width: 18px; height: 18px; }
+.voice-btn.playing {
+  color: var(--c-accent-deep);
+  border-color: currentColor;
+}
+/* gentle pulse while speaking; static under reduced motion / the pause toggle */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.motion-off) .voice-btn.playing .voice-icon { animation: voice-pulse 1.6s ease-in-out infinite; }
+}
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}

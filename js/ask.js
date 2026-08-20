@@ -5,12 +5,17 @@
 import { el, clearNode } from "./ui.js";
 import { safety } from "./safety.js";
 import { retrieval } from "./retrieval.js";
+import { voice } from "./voice.js";
 
 function renderAnswer(container, entry) {
   clearNode(container);
+  const heading = el("h2", {}, entry.q[0]);
+  const headRow = el("div", { class: "answer-head" }, heading);
+  // appears only when pre-recorded audio exists for this entry (see voice.js)
+  voice.attach(headRow, entry.id);
   container.append(
     el("article", { class: "answer-card step-enter" },
-      el("h2", {}, entry.q[0]),
+      headRow,
       el("div", { class: "answer-body" },
         entry.a.map((para) => el("p", {}, para))),
       el("div", { class: "cite-row" },

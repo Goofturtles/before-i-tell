@@ -148,6 +148,10 @@ export const safety = {
     if (this._active) return;
     this._active = true;
 
+    // any playing audio stops — a voice reading corpus copy under this
+    // dialog would be noise at the worst possible moment (voice.js listens)
+    document.dispatchEvent(new CustomEvent("bit:silence"));
+
     const prev = store.session.get("s") || {};
     // persist tier + fired flag only — never text
     store.session.set("s", { ...prev, tier: 3, fired: true });

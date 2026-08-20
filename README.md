@@ -22,6 +22,14 @@ Three levels, climbed at the user's own speed — every step up is a button only
 
 **Offline as proof.** After the first visit a service worker keeps the whole site on-device: Levels 1 and 3 run in airplane mode. That's the checkable form of "nothing you type leaves your device" — a tool that needed a server couldn't do it.
 
+**A voice, where a voice helps (ElevenLabs, build-time only).** "Listen" buttons on the L1 answers and the adult briefing play pre-recorded narration — generated once by the site author with ElevenLabs (`tools/voice-build.mjs`), shipped as same-origin mp3 files like the font. The adult page is the clever half: the calm, unhurried voice *models the exact tone the page teaches*, and listening forces the full two minutes instead of a skim. For students, it serves younger readers, dyslexic readers, and anyone too shaken to parse dense legal text. What we deliberately refused: runtime text-to-speech. The only text worth speaking at runtime is the student's own words, and a cloud voice API has no business hearing those — so pressing play fetches a file from this site, sends nothing, and works offline. The buttons appear only where a generated clip exists; until then the feature is invisible.
+
+```bash
+# one-time, by the site author (key never ships):
+ELEVENLABS_API_KEY=xi-... node tools/voice-build.mjs   # starter set, fits the free tier
+# then: git add media/voice && commit && push
+```
+
 ## Safety architecture
 
 - **Tiered risk detection** on every free-text input, *before* anything else sees it.
@@ -80,6 +88,8 @@ js/scaffold.js     words scaffold (pure template join)
 js/link.js         fragment encode/decode, versioned, enum-validated
 js/app.js          routes + screens + practice mode (rehearsal dialog)
 js/adult.js        briefing renderer + hash-stripping print
+js/voice.js        optional pre-recorded Listen buttons (dark until generated)
+tools/voice-build.mjs — build-time ElevenLabs narration generator
 sw.js              offline shell (same-origin only; never caches user input)
 manifest.webmanifest + icon.svg — installable, minimal-ui
 media/             generated video: story-scrub.mp4 (all-intra H.264 for

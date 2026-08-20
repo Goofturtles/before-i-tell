@@ -10,7 +10,7 @@
    After a deploy, a page may render one visit stale and be current the next —
    the honest trade for working offline. Bump VERSION to force a clean sweep. */
 
-const VERSION = "bit-v2";
+const VERSION = "bit-v3";
 
 const SHELL = [
   "./",
@@ -36,6 +36,7 @@ const SHELL = [
   "js/store.js",
   "js/terms.js",
   "js/ui.js",
+  "js/voice.js",
   "fonts/bricolage-grotesque-latin.woff2",
   "media/hero-poster.jpg",
   "media/story-poster.jpg",
