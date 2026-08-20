@@ -377,8 +377,13 @@ if (isMain || process.env.BIT_AUTOSTART === "1") {
   await startPolling();
   server.listen(PORT, () => {
     const m = modeInfo();
-    console.log(`[relay] listening on :${PORT} · mode=${m.mode}${m.configured ? "" : " (NOT CONFIGURED)"}`);
+    console.log(`[relay] listening on :${PORT} · mode=${m.mode} · transport=${m.transport}${m.configured ? "" : " (NOT CONFIGURED)"}`);
     if (m.mode !== "live") console.log("[relay] dry run — mail is written to outbox/, replies read from inbox-drop/");
+    // sending via Brevo but no Gmail creds → Reply-To degrades to a localhost
+    // plus-address and counsellor replies are black-holed. Warn loudly.
+    if (m.transport === "brevo" && !process.env.BIT_GMAIL_USER) {
+      console.warn("[relay] WARNING: sending via Brevo but BIT_GMAIL_USER is unset — replies cannot be routed or read. Set the Gmail account too.");
+    }
   });
 }
 

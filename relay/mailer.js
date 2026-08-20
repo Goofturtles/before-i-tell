@@ -64,6 +64,9 @@ async function sendViaBrevo({ to, subject, replyTo, text, html, tag }) {
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" },
+    // a stalled socket must not hang the /send request forever — fail to
+    // "delivery" and roll back, same as any other send error
+    signal: AbortSignal.timeout(15000),
     body: JSON.stringify({
       sender: { email: MAIL_FROM, name: "Before I Tell" },
       to: [{ email: to }],
