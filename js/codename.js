@@ -120,8 +120,14 @@ function slowNote(status) {
 /** The relay refuses to email crisis content — correct, but a bare refusal is a
     dead end for someone who was reaching out. Raise the takeover AND leave a
     signposted fork behind it, so dismissing the dialog doesn't strand them in
-    front of a Send button that will never work. */
-function crisisFork(status, { raise = true, fam } = {}) {
+    front of a Send button that will never work.
+
+    @param restoreTo the composer to return focus to when the takeover is
+    dismissed. On the relay-verdict path the Send button was disabled and
+    re-enabled before we get here, so activeElement is already <body> —
+    without this the student is dropped to the top of the page instead of back
+    to the message they wrote. */
+function crisisFork(status, { raise = true, fam, restoreTo } = {}) {
   // the relay's check may out-know the client's (patterns drift) — its family
   // verdict must drive the honest-note branch, or an abused student could be
   // shown the "doesn't trigger children's aid" copy
@@ -132,7 +138,7 @@ function crisisFork(status, { raise = true, fam } = {}) {
   }
   // raise=false when safety.clear() already put the dialog up; and never
   // re-raise for someone who has explicitly said "I'm safe right now"
-  if (raise && !safety._dismissed()) safety.takeover(safety._everFired() ? "again" : "first");
+  if (raise && !safety._dismissed()) safety.takeover(safety._everFired() ? "again" : "first", restoreTo);
   clearNode(status);
   status.append(
     el("div", { class: "answer-card", style: "margin-top:16px" },
@@ -216,7 +222,7 @@ function renderCompose() {
     // It raises the dialog itself, so we only add the explanation behind it —
     // otherwise dismissing leaves the student staring at a Send button that
     // will never work, with no idea why.
-    if (!safety.clear(message)) { crisisFork(status, { raise: false }); return; }
+    if (!safety.clear(message)) { crisisFork(status, { raise: false, restoreTo: msgInput }); return; }
 
     sendBtn.disabled = true;
     sendBtn.textContent = "Sending…";
@@ -232,7 +238,7 @@ function renderCompose() {
       renderCreated(res);
       return;
     }
-    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam }); return; }
+    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam, restoreTo: msgInput }); return; }
     refusalNote(status, res.reason);
   });
 
@@ -399,7 +405,7 @@ function renderThread(thread, pass) {
     clearNode(status);
     const message = replyBox.value.trim();
     if (!message) { status.append(note(REFUSALS.empty)); return; }
-    if (!safety.clear(message)) { crisisFork(status, { raise: false }); return; }
+    if (!safety.clear(message)) { crisisFork(status, { raise: false, restoreTo: replyBox }); return; }
     replyBtn.disabled = true;
     replyBtn.textContent = "Sending…";
     const slow = slowNote(status);
@@ -418,7 +424,7 @@ function renderThread(thread, pass) {
     }
     replyBtn.disabled = false;
     replyBtn.textContent = "Send reply";
-    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam }); return; }
+    if (res.reason === "crisis") { crisisFork(status, { fam: res.fam, restoreTo: replyBox }); return; }
     status.append(note(REFUSALS[res.reason] || "Couldn't send that."));
   });
 
