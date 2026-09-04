@@ -102,7 +102,14 @@ export function checkRecipient(raw) {
      tests and dashboard changes apply without a restart. */
   const demo = String(process.env.BIT_DEMO_RECIPIENTS || "")
     .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
-  if (demo.includes(email)) return { ok: true, email, domain, demo: true };
+  /* domain: null, deliberately. This block promises it "matches whole
+     addresses (never domains)", and the thread's stored domain is now what
+     the inbound sender check widens to — so returning "gmail.com" here would
+     let ANY gmail account holding the tag reply into a demo conversation,
+     quietly turning the one exception into the gate-widening it says it is
+     not. A null domain means that thread accepts replies from its exact
+     recipient only. */
+  if (demo.includes(email)) return { ok: true, email, domain: null, demo: true };
 
   // subdomain-aware deny: mail.gmail.com must not sneak past an exact-match set
   const labels = domain.split(".");

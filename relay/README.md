@@ -75,8 +75,18 @@ recipient is accepted, and so is any other address at the *same school domain*.
 Strict exact-matching silently swallowed real answers — aliases, shared
 `guidance@` mailboxes, and Exchange rewriting an address to the primary SMTP
 one. The accepted risk is that a colleague at that school who receives a
-forwarded copy could write into the conversation; it can never be a stranger
-or another board. When the sender is not the exact recipient, the stored
+forwarded copy could write into the conversation.
+
+That bound rests on the `From:` header, which the sender writes, so treat it
+as a strong filter rather than proof of identity. `addressOf()` takes the last
+angle-address after stripping quoted display names — without that, a message
+genuinely from `evil.com` could put `"Guidance <guidance@board.ca>"` in its
+display name and be filed as the counsellor's reply. `authFailed()` refuses
+mail the receiving server positively flagged (`dmarc=fail`, or both SPF and
+DKIM failing); it does *not* require a pass, because demanding one would
+refuse real replies from the many school domains with weak DKIM, and losing a
+reply is the worse failure. A domain publishing no DMARC policy can still be
+spoofed by someone who also holds the thread tag. When the sender is not the exact recipient, the stored
 message is prefixed with who actually replied, so the thread never implies the
 student is hearing back from the specific adult they chose. Refusals are
 counted at `/health` as `rejectedReplies`.

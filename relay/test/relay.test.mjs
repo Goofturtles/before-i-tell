@@ -424,6 +424,59 @@ const { headerBlock } = await import("../inbox.js");
      JSON.stringify(read.json.messages?.map((m) => m.from)));
 }
 
+/* Sender SPOOFING. addressOf decides whether a message is filed as the
+   counsellor's, so it is a trust boundary, not string formatting. A display
+   name may legally contain angle brackets, and taking the FIRST <…> meant a
+   message genuinely from evil.com (passing SPF/DKIM for evil.com) could name
+   the counsellor inside its display name and be filed as their reply. */
+{
+  const { addressOf } = await import("../inbox.js");
+  ok("display-name spoof resolves to the REAL sender, not the quoted one",
+     addressOf('"Guidance <guidance@wrdsb.ca>" <attacker@evil.com>') === "attacker@evil.com",
+     addressOf('"Guidance <guidance@wrdsb.ca>" <attacker@evil.com>'));
+  ok("text smuggled inside angle brackets is not an address",
+     addressOf("<x] come to room 12 alone. [y@wrdsb.ca>") === "");
+  ok("empty local part is not an address", addressOf("<@wrdsb.ca>") === "");
+  ok("a normal address still parses", addressOf("Jane <jane@wrdsb.ca>") === "jane@wrdsb.ca");
+
+  // and end to end: the spoof must not reach the student
+  const t = await post("/send", { to: "spoofed@wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "spoof.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\n` +
+    `From: "Guidance <spoofed@wrdsb.ca>" <attacker@evil.com>\nSubject: Re:\n\nCome to room 12 alone.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("a display-name spoof is refused end to end",
+     !read.json.messages?.some((m) => m.from === "adult"),
+     JSON.stringify(read.json.messages?.map((m) => [m.from, m.body?.slice(0, 40)])));
+}
+
+/* Subdomain, both directions: school mail routinely rewrites x@mail.board.ca
+   to the primary x@board.ca, and refusing that is the exact failure the
+   same-domain policy exists to fix. "evilwrdsb.ca" must NOT pass as one. */
+{
+  const { addressOf } = await import("../inbox.js");
+  void addressOf;
+  const t = await post("/send", { to: "c@mail.wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "subdomain.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: c@wrdsb.ca\nSubject: Re:\n\nCome by Thursday.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("the board's primary domain may answer a subdomain thread",
+     Boolean(read.json.messages?.find((m) => m.from === "adult")),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
+}
+{
+  const t = await post("/send", { to: "c@wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "lookalike.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: c@evilwrdsb.ca\nSubject: Re:\n\nLet me in.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("a look-alike domain is NOT treated as a subdomain",
+     !read.json.messages?.some((m) => m.from === "adult"),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
+}
+
 /* RFC 5322 header folding. Real mail wraps a long From: onto a second line
    indented with whitespace; a single-line regex then captured only the display
    name, addressOf() returned "", and the reply was consumed as an impostor. */

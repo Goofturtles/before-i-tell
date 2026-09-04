@@ -21,7 +21,7 @@ const MAX_REPLY = 4000;
 /* Replies we refused and consumed. Each one is a counsellor who believes they
    answered a child who will never see it, so these must be visible somewhere
    an operator actually looks — /health, not just the log. */
-export const rejected = { senderMismatch: 0, expiredThread: 0, emptyBody: 0 };
+export const rejected = { senderMismatch: 0, expiredThread: 0, emptyBody: 0, automated: 0, authFailed: 0 };
 
 /** pull the thread tag out of any address-bearing header */
 export function tagFrom(headerValue) {
@@ -60,11 +60,59 @@ export function unfold(headerText) {
   return String(headerText || "").replace(/\r\n/g, "\n").replace(/\n[ \t]+/g, " ");
 }
 
-/** bare address out of "Name <a@b.c>" or "a@b.c" */
+/** Bare address out of `Name <a@b.c>` or `a@b.c`, or "" if there isn't a
+    well-formed one.
+
+    This is a TRUST decision, not a formatting convenience: its answer decides
+    whether a message is filed as the counsellor's. Three things it must do,
+    each of which it previously got wrong:
+
+    1. Drop quoted display names FIRST. A display name may legally contain
+       angle brackets, and taking the first `<…>` meant
+         From: "Guidance <guidance@school.ca>" <attacker@evil.com>
+       authenticated as the counsellor while the mail genuinely came from
+       evil.com — passing SPF/DKIM/DMARC for evil.com, so it lands in the
+       inbox normally. If the crafted inner address matched the thread's
+       recipient exactly, even the "replied by someone else" note was skipped.
+    2. Take the LAST angle-addr. Per RFC 5322 the addr-spec is the final one;
+       anything before it is display text the sender chose.
+    3. Validate the result is actually an address — exactly one "@", no
+       whitespace, non-empty on both sides. Without this, `<@school.ca>` and
+       `<x] arbitrary text [y@school.ca>` both parsed to something whose
+       "domain" was the school, which passed the same-domain check AND got
+       interpolated into the note the student reads. */
 export function addressOf(headerValue) {
-  const s = String(headerValue || "");
-  const m = /<([^>]+)>/.exec(s) || /([^\s<>,;:"]+@[^\s<>,;:"]+)/.exec(s);
-  return m ? m[1].trim().toLowerCase() : "";
+  const s = String(headerValue || "").replace(/"(?:[^"\\]|\\.)*"/g, " ");
+  const angles = s.match(/<[^<>]*>/g);
+  const candidate = (angles ? angles[angles.length - 1].slice(1, -1) : s).trim();
+  const strict = /^[^\s<>,;:"@]+@[^\s<>,;:"@]+$/;
+  if (strict.test(candidate)) return candidate.toLowerCase();
+  // no usable angle-addr: accept a bare token only if it stands alone
+  const bare = /(?:^|\s)([^\s<>,;:"@]+@[^\s<>,;:"@]+)(?:\s|$)/.exec(s);
+  return bare ? bare[1].toLowerCase() : "";
+}
+
+/** Did the receiving server explicitly say this message FAILED authentication?
+
+    Deliberately not the inverse of "did it pass". Requiring a pass would refuse
+    mail from the many school domains with weak or absent DKIM, and refusing a
+    real reply is the worst failure this system has — the whole session's work
+    has been about not doing that. So this returns true only on positive
+    evidence of forgery: a DMARC failure, or both SPF and DKIM failing.
+    Absent, unparseable, or inconclusive headers are treated as no evidence.
+
+    We read the From header for identity, and a forged From is exactly what
+    these results detect, so this is the one signal that is not attacker-
+    controlled — Gmail stamps it on arrival. (An attacker can add their own
+    Authentication-Results line to the body of the message, but it lands
+    BELOW Gmail's, and headerBlock keeps only the real header block.) */
+export function authFailed(headers) {
+  const h = headerBlock(headers).toLowerCase();
+  const lines = h.split("\n").filter((l) => l.startsWith("authentication-results:"));
+  if (!lines.length) return false;
+  const all = lines.join(" ");
+  if (/dmarc=fail/.test(all)) return true;
+  return /spf=fail/.test(all) && /dkim=fail/.test(all);
 }
 
 /** Everything before the first blank line. These checks must see HEADERS only:
@@ -118,7 +166,19 @@ async function record(tag, body, fromHeader, rawHeaders) {
     console.warn(`[inbox] reply for an unknown or expired thread ${tag.slice(0, 8)} — nothing to file it against`);
     return "rejected";
   }
-  if (isAutomated(rawHeaders)) return "rejected";
+  /* Positive evidence the From header was forged. Checked before identity,
+     because identity is derived FROM that header. */
+  if (authFailed(rawHeaders)) {
+    rejected.authFailed++;
+    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: the receiving server reported an authentication failure`);
+    return "rejected";
+  }
+  if (isAutomated(rawHeaders)) {
+    // a false positive here (a board stamping Precedence: bulk on all mail)
+    // destroys a real reply, so make it visible rather than silent
+    rejected.automated++;
+    return "rejected";
+  }
   /* Sender check: the exact address, OR another address at the same school.
      The operator chose same-domain deliberately, because refusing an alias,
      a shared guidance@ mailbox, or an Exchange-rewritten address meant real
@@ -126,13 +186,33 @@ async function record(tag, body, fromHeader, rawHeaders) {
 
      The accepted risk: the thread tag rides in the Reply-To of an email a
      counsellor can forward, so a colleague at that school who receives a
-     forward could write into the conversation. It is bounded to that one
-     school's domain — never a stranger, never another board. */
+     forward could write into the conversation.
+
+     The bound is "that school's domain", and it is only as strong as our
+     reading of the From header — which the sender writes. addressOf() closes
+     the display-name spoof that made this claim false, and authFailed()
+     refuses mail the receiving server positively flagged as forged. Neither
+     is proof of identity: a domain with no DMARC policy can still be
+     spoofed by someone who also holds the tag. Do not upgrade this comment
+     to a guarantee. */
   const sender = addressOf(fromHeader);
   const to = String(thread.to).toLowerCase();
   const senderDomain = sender.includes("@") ? sender.split("@").pop() : "";
-  const threadDomain = String(thread.domain || to.split("@").pop() || "").toLowerCase();
-  const sameDomain = Boolean(senderDomain) && senderDomain === threadDomain;
+  /* No fallback to the recipient's own domain. A thread with no stored domain
+     is a DEMO thread (schools.js returns null for those on purpose), and
+     deriving the domain from the address would hand the whole of gmail.com
+     the ability to reply into it. Missing domain therefore means exact match
+     only — the safe direction. */
+  const threadDomain = String(thread.domain || "").toLowerCase();
+  /* Subdomain-aware in BOTH directions, because school mail is: a thread to
+     x@mail.pdsb.net whose counsellor replies from the Exchange-primary
+     x@pdsb.net is exactly the case this widening exists to fix, and an exact
+     string compare still refused it. Anchored on a dot so "evilwrdsb.ca"
+     cannot pass as a subdomain of "wrdsb.ca". */
+  const sameDomain = Boolean(senderDomain) && Boolean(threadDomain) && (
+    senderDomain === threadDomain ||
+    senderDomain.endsWith("." + threadDomain) ||
+    threadDomain.endsWith("." + senderDomain));
   if (!sender || (sender !== to && !sameDomain)) {
     rejected.senderMismatch++;
     console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender ${sender || "(unparseable)"} is outside this thread's school — it stays in the mailbox, marked read`);
@@ -333,7 +413,15 @@ function htmlToText(html) {
     falls back to a de-tagged text/html part, never raw MIME */
 export function extractPlain(source) {
   const s = String(source || "").replace(/\r\n/g, "\n");
-  const parts = s.split(/\n--[^\n]+\n/);
+  /* Split on the message's DECLARED boundary when there is one. Splitting on
+     any `\n--…\n` also matched a counsellor separating paragraphs with "---",
+     which silently truncated their reply at that line. A real MIME boundary
+     is announced in the Content-Type header, so use it; only fall back to the
+     loose pattern when no boundary was declared. */
+  const declared = /boundary="?([^"\s;]+)"?/i.exec(s)?.[1];
+  const parts = declared
+    ? s.split(new RegExp("\\n--" + declared.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:--)?\\n?"))
+    : s.split(/\n--[^\n]+\n/);
   const candidates = parts.length > 1 ? parts : [s];
   let htmlFallback = "";
   for (const part of candidates) {
