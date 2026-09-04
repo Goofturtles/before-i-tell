@@ -323,6 +323,12 @@ export function quickExit() {
 addEventListener("bit:region", () => {
   const existing = $(".safety-banner");
   if (!existing) return;
+  /* Not while the takeover is up. _inerted is a snapshot of body's children
+     taken when the dialog opened, so a banner re-inserted now would sit
+     OUTSIDE it — reachable by focus and screen readers behind a modal that is
+     supposed to own the screen. The dispatch is debounced, so this window is
+     real. _dismiss() calls renderBanner() anyway, which re-reads the region. */
+  if (safety._active) return;
   existing.remove();
   renderBanner();
 });

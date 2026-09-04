@@ -77,7 +77,15 @@ async function sendViaBrevo({ to, subject, replyTo, text, html, tag }) {
       subject,
       textContent: text,
       htmlContent: html,
-      headers: { "X-BIT-Thread": tag, "Auto-Submitted": "auto-generated" },
+      /* Deliberately NO "Auto-Submitted: auto-generated". Per RFC 3834 that
+         header is for messages with no human-authored content — but the body
+         here is a message a student wrote by hand; we only automate the
+         transport. Sending it was both inaccurate and a strong signal for
+         Gmail to file this under the Updates tab instead of Primary, which is
+         the difference between a counsellor seeing it today and next week.
+         Auto-reply loops stay handled where they always were: inbox.js drops
+         inbound auto-replies and out-of-office messages. */
+      headers: { "X-BIT-Thread": tag },
     }),
   });
   if (!res.ok) {
@@ -191,7 +199,7 @@ export async function sendToCounsellor({ to, codename, message, tag, first }) {
   if (kind === "smtp") {
     const info = await (await getTransport()).sendMail({
       from: `"Before I Tell" <${MAIL_FROM}>`, to, subject, replyTo, text, html,
-      headers: { "Auto-Submitted": "auto-generated", "X-BIT-Thread": tag },
+      headers: { "X-BIT-Thread": tag }, // see the Brevo path: no Auto-Submitted
     });
     return { ok: true, mode: "live", transport: "smtp", id: info.messageId };
   }
