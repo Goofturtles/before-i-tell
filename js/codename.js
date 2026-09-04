@@ -342,6 +342,7 @@ function renderResume(saved) {
     if (res.ok) {
       saveState({ tag: res.tag, codename: res.codename, to: res.to });
       renderThread(res, passInput.value.trim());
+      focusThreadTitle();
       return;
     }
     status.append(note(REFUSALS[res.reason] || "Couldn't open that conversation."));
@@ -364,9 +365,16 @@ function renderResume(saved) {
 
 /** onFail keeps the CURRENT screen alive — a failed refresh must never
     destroy the once-shown passphrase screen behind an unexplained login form */
+/** Refresh rebuilds the whole screen, so focus would fall to <body> and a new
+    reply would arrive silently. Land focus on the thread heading, which now
+    states the reply state. */
+function focusThreadTitle() {
+  requestAnimationFrame(() => mount?.querySelector(".thread-title")?.focus({ preventScroll: true }));
+}
+
 async function openThread(tag, pass, onFail) {
   const res = await relayPost("/thread", { tag, pass });
-  if (res.ok) renderThread(res, pass);
+  if (res.ok) { renderThread(res, pass); focusThreadTitle(); }
   else if (onFail) onFail(res);
   else renderResume(state());
 }
@@ -435,8 +443,14 @@ function renderThread(thread, pass) {
   add(
     el("div", { class: "thread-head" },
       el("span", { class: "thread-avatar", "aria-hidden": "true" }, initials),
+      // a real heading: every sibling screen has one, and the route-change
+      // focus target needs it. It also states the reply state up front, so a
+      // screen reader learns "they replied" without hunting for the dot.
       el("div", { class: "thread-head__who" },
-        el("b", {}, thread.codename),
+        el("h1", { class: "thread-title", tabindex: "-1" },
+          el("span", { class: "vh" },
+            thread.adultReplied ? "They replied. Conversation with " : "Waiting for a reply. Conversation with "),
+          thread.codename),
         el("span", { class: "thread-status" + (thread.adultReplied ? " thread-status--replied" : "") },
           thread.adultReplied ? "They replied" : "Waiting for a reply")),
       el("button", {

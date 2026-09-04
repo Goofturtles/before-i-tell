@@ -58,11 +58,22 @@ export const ask = {
   _results: null,
 
   /** Once an answer is on screen the starter list is noise — the answer's own
-      "ask next" rows take over. Also bring the answer into view: on a phone
-      the results region sits below the fold. */
+      "ask next" rows take over. Removing it (and re-rendering the results)
+      destroys whatever button the user just pressed, so focus must be MOVED
+      deliberately or it falls to <body> and a keyboard user restarts at the
+      top of the document. The answer heading is the right landing place: it
+      names what just happened without reciting the whole answer. */
   _afterAnswer() {
     document.querySelector(".ask-starters")?.remove();
-    this._results?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const heading = this._results?.querySelector("h2");
+    if (heading) {
+      heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    }
+    // behavior:"auto" defers to the CSS scroll-behavior, which is already
+    // gated on prefers-reduced-motion and the page's own motion toggle —
+    // a hardcoded "smooth" would override both
+    this._results?.scrollIntoView({ behavior: "auto", block: "start" });
   },
 
   show(id) {
@@ -85,7 +96,11 @@ export const ask = {
     });
     safety.guard(input);
 
-    const results = el("div", { "aria-live": "polite" });
+    /* deliberately NOT aria-live: an answer is a document (several paragraphs,
+       citations and follow-up buttons), and a polite region would recite the
+       whole thing uninterruptibly. _afterAnswer moves focus to its heading
+       instead, which announces the answer and lets the reader explore it. */
+    const results = el("div");
     this._results = results;
 
     const submit = (e) => {

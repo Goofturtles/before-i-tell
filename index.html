@@ -444,18 +444,9 @@
        Generated locally (LTX-Video on the author's GPU) and served as a same-
        origin file — the zero-external-request guarantee holds. */
 
-    // crisis anchor: a distressed user must NOT ride smooth-scroll through
-    // 10,000px of scenes — jump instantly, and move focus WITH the jump so
-    // keyboard/SR users land on the phone numbers, not back at the nav
-    document.querySelector(".nav__crisis")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      const crisis = document.getElementById("crisis");
-      if (crisis) {
-        crisis.setAttribute("tabindex", "-1");
-        crisis.scrollIntoView({ behavior: "instant", block: "start" });
-        crisis.focus({ preventScroll: true });
-      }
-    });
+    // the crisis anchor's instant-jump + focus-move now lives in ui.js
+    // (wireCrisisLink, called by bootPage) so the hash-routed app page gets
+    // the same behaviour — there, a plain #crisis href resets the router.
 
     // ambient loop: only for users who want motion — and only once they near
     // the CTA, so the 0.5MB never downloads for people who don't scroll there

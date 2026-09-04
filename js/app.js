@@ -33,11 +33,10 @@ function chromeRow() {
     being readable past three steps. */
 function wizard(step, total) {
   return el("div", { class: "wizard" },
-    el("div", {
-      class: "wizard__track", role: "progressbar",
-      "aria-valuenow": String(step), "aria-valuemin": "1", "aria-valuemax": String(total),
-      "aria-label": `Step ${step} of ${total}`,
-    }, el("div", { class: "wizard__fill", style: `width:${(step / total) * 100}%` })),
+    // the visible "Step N of M" already states this; an aria-label on the
+    // track would make a screen reader say it twice
+    el("div", { class: "wizard__track", "aria-hidden": "true" },
+      el("div", { class: "wizard__fill", style: `width:${(step / total) * 100}%` })),
     el("span", { class: "wizard__count" }, `Step ${step} of ${total}`));
 }
 
@@ -51,8 +50,13 @@ function actionBar(...children) {
     pushed the copy button out from under the user's finger). */
 function toast(message) {
   document.querySelector(".toast")?.remove();
-  const node = el("div", { class: "toast", role: "status" }, message);
+  // empty region FIRST, text after it is live: a live region created with its
+  // children already in place fires no mutation, so it never announces
+  const node = el("div", { class: "toast", role: "status" });
   document.body.append(node);
+  // a timer, not rAF: rAF doesn't fire while the tab isn't compositing, which
+  // would leave the toast permanently blank
+  setTimeout(() => { node.textContent = message; }, 50);
   setTimeout(() => node.remove(), 2600);
 }
 

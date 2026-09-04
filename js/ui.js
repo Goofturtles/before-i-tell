@@ -138,6 +138,25 @@ export function wireMotionToggle(store) {
   });
 }
 
+/** The crisis link must never change the hash. On the hash-routed app page a
+    bare href="#crisis" resolves as an unknown route: the router rewrites to
+    "#/", re-renders HOME (wiping whatever the student was in the middle of,
+    including an unsent Level 2 message) and pulls focus to the top — i.e. the
+    most urgent control in the product scrolled AWAY from the phone numbers.
+    Jump instantly (a distressed user must not ride a smooth scroll) and move
+    focus with the jump so keyboard/SR users land on the numbers. */
+export function wireCrisisLink() {
+  const link = $(".nav__crisis");
+  const crisis = $("#crisis");
+  if (!link || !crisis) return;
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    crisis.setAttribute("tabindex", "-1");
+    crisis.scrollIntoView({ behavior: "instant", block: "start" });
+    crisis.focus({ preventScroll: true });
+  });
+}
+
 /** skip links must move focus without touching the hash (a hash change would
     fire the router and dump the user back to HOME, wiping their screen) */
 export function wireSkipLink() {
@@ -211,6 +230,7 @@ export function bootPage(store) {
   wireThemeToggle(store);
   wireMotionToggle(store);
   wireSkipLink();
+  wireCrisisLink();
   wireNavScroll();
   wireRevealFallback();
   wireCounterProbe();
