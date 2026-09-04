@@ -368,14 +368,24 @@ ok("real Precedence header IS treated as automated",
   const { nulSafeJson } = store;
 
   const round = (o) => JSON.parse(nulSafeJson(o));
-  const hasNul = (o) => JSON.stringify(o).includes(NUL);
+
+  /* Check DECODED values, never the JSON text. An earlier version of these
+     assertions asked `nulSafeJson(x).includes(NUL)` -- which is false no
+     matter what the function does, because stringify has already turned any
+     NUL into escape TEXT. It was the very trap this block exists to pin,
+     and it made two assertions pass unconditionally. */
+  const badChars = (v) => {
+    if (typeof v === "string") return v.includes(NUL) || /\p{Surrogate}/u.test(v);
+    if (v && typeof v === "object") return Object.values(v).some(badChars);
+    return false;
+  };
 
   ok("NUL is removed from a message",
      round({ m: "hi" + NUL + "there" }).m === "hithere");
-  ok("output carries no NUL at all",
-     !nulSafeJson({ m: "a" + NUL }).includes(NUL));
+  ok("no NUL survives into the decoded value",
+     !badChars(round({ m: "a" + NUL })));
   ok("NUL is removed inside nested objects and arrays",
-     !hasNul(round({ t: { msgs: ["a" + NUL, "b"], who: "c" + NUL + "d" } })));
+     !badChars(round({ t: { msgs: ["a" + NUL, "b"], who: "c" + NUL + "d" } })));
 
   /* The trap in the "obvious" alternative: stripping the escape as TEXT.
      A student typing \u0000 produces an escaped backslash in the JSON,
@@ -385,6 +395,17 @@ ok("real Precedence header IS treated as automated",
   const typed = "hi" + '\\' + "u0000there";
   ok("text that merely LOOKS like the escape is left untouched",
      round({ m: typed }).m === typed, JSON.stringify(round({ m: typed }).m));
+
+  /* The NUL's twin. stringify emits an unpaired surrogate as \ud800,
+     which jsonb rejects identically and just as permanently. No attacker
+     needed: slicing a reply at MAX_REPLY can cut an emoji in half. */
+  const lone = "hi" + String.fromCharCode(0xd800) + "there";
+  ok("a lone surrogate is repaired, not passed through",
+     !badChars(round({ m: lone })), JSON.stringify(round({ m: lone }).m));
+  ok("a split emoji (real cause) is repaired",
+     !badChars(round({ m: "ok " + "\u{1f600}".slice(0, 1) })));
+  ok("well-formed emoji are left alone",
+     round({ m: "all good \u{1f600}" }).m === "all good \u{1f600}");
 
   ok("output is always valid JSON pg can parse",
      typeof round({ a: "x" + NUL, b: 1, c: null, d: [NUL] }) === "object");

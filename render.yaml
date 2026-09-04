@@ -24,6 +24,16 @@ services:
         value: "20"
       - key: BIT_RETAIN_DAYS
         value: "90"
+      # REQUIRED on Render's free plan. Outbound SMTP is blocked here, so the
+      # Gmail transport below cannot connect at all (it times out against
+      # smtp.gmail.com:465) — that is why Level 2 silently never delivered.
+      # Brevo's transactional API sends over HTTPS:443 instead, and mailer.js
+      # prefers it whenever this key is present.
+      - key: BIT_BREVO_API_KEY
+        sync: false
+      # Still needed: IMAP polling reads counsellor REPLIES from this mailbox,
+      # and inbound IMAP is not blocked. The app password is also the SMTP
+      # fallback for running the relay somewhere that permits SMTP.
       - key: BIT_GMAIL_USER
         sync: false
       - key: BIT_GMAIL_APP_PASSWORD

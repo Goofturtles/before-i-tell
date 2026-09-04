@@ -37,8 +37,11 @@ feature is dangerous:
    dropped rather than shown to a child as their counsellor's answer.
 
 Plus: passphrase-gated reads (scrypt-hashed), per-IP and per-recipient rate limits,
-and no name, email, IP or device identifier is ever persisted — rate-limit keys are
-salted hashes held in memory and die with the process.
+and no name, email, IP or device identifier **belonging to the student** is ever
+persisted — rate-limit keys are salted hashes held in memory and die with the
+process. What *is* stored, because delivery is impossible without it: the
+**counsellor's** school address on the thread, and any address on the block
+list. Both are adults' work addresses, never the student's.
 
 ---
 
@@ -91,11 +94,20 @@ Gmail allows roughly 500 messages/day — far beyond what this needs.
 
 `render.yaml` at the **repo root** (Blueprint discovery requires it there; it
 points at this folder via `rootDir: relay`) is a ready Render blueprint. Push,
-then **New → Blueprint** on render.com, and set the four `sync: false` values
-in the dashboard: the Gmail pair (use a dedicated relay account, never a
-personal one — counsellors see the sender address), `BIT_PUBLIC_URL` (the
-service's own onrender.com URL) and `BIT_ALLOW_ORIGIN`
+then **New → Blueprint** on render.com, and set the `sync: false` values in the
+dashboard: `BIT_BREVO_API_KEY`, the Gmail pair (use a dedicated relay account,
+never a personal one — counsellors see the sender address), `BIT_PUBLIC_URL`
+(the service's own onrender.com URL) and `BIT_ALLOW_ORIGIN`
 (`https://goofturtles.github.io`).
+
+⚠️ **`BIT_BREVO_API_KEY` is required on the free plan.** Render blocks outbound
+SMTP, so the Gmail transport cannot connect (it times out against
+`smtp.gmail.com:465`) — this is why Level 2 appeared to work while never
+actually delivering anything. Brevo's transactional API sends over HTTPS
+instead, and `mailer.js` prefers it whenever the key is set. The Gmail
+credentials are still needed: replies are read by **IMAP** polling, which is
+not blocked. Confirm which transport is live at `/health` → `"transport"`
+(`"brevo"`, `"smtp"`, or `"none"` — `none` means every send will fail).
 
 ⚠️ **Durability — set `DATABASE_URL`.** The free plan's filesystem is ephemeral
 and cannot take a disk, so *without* a database every redeploy and every

@@ -160,6 +160,23 @@ async function handleSend(req, res, body) {
     return json(res, 200, { ok: false, reason: "crisis", fam: risk.fam });
   }
 
+  /* Storage is degraded: the boot read failed, so store.js has (correctly)
+     disabled writes to avoid overwriting everyone's conversations with an
+     empty blob. Refuse the send rather than accept it.
+
+     Accepting would be the dishonest branch, and it is the one that used to
+     happen: we would hand the student a passphrase, tell them to write it
+     down, and promise a reply comes back here — while nothing was being
+     stored, so the passphrase could never open anything and the counsellor's
+     reply could never be matched to a thread. An honest refusal costs one
+     message; the alternative costs someone the reply to the hardest thing
+     they have ever typed.
+
+     /health deliberately stays 200 with degraded:true. Failing the health
+     check would let Render kill the instance, and the student would get a
+     network error instead of this explanation and the crisis numbers. */
+  if (store.degraded()) return json(res, 503, { ok: false, reason: "storage" });
+
   /* Rate limiting is CHECK-then-CHARGE: every limit is verified before any
      is incremented and before any thread exists, so a refusal can't orphan
      a passphrase-less thread or burn budgets for a message that never sent.

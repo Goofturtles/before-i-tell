@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test/relay.test.mjs"
+    "test": "node test/relay.test.mjs && node test/degraded.test.mjs"
   },
   "dependencies": {
     "imapflow": "^1.0.171",

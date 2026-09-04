@@ -63,10 +63,17 @@ export const DURABLE = Boolean(DB_URL);
        who types \u0000 yields an escaped backslash, and removing the tail
        leaves a stray backslash that fuses with the next character (a test
        message turned into a tab).
+   The NUL has a TWIN: an unpaired surrogate. stringify emits it as the
+   escape \ud800, which jsonb rejects for the same reason and with the
+   same permanent effect. It needs no attacker -- slicing a reply at
+   MAX_REPLY can cut an emoji in half. toWellFormed() (Node >=20, and
+   package.json already requires it) replaces any lone surrogate with
+   U+FFFD, so both halves of the hazard are handled in one pass.
+
    Exported so relay.test.mjs can hold this behaviour down. */
 export function nulSafeJson(db) {
   return JSON.stringify(db, (_k, v) =>
-    typeof v === "string" ? v.replace(/\u0000/g, "") : v);
+    typeof v === "string" ? v.replace(/\u0000/g, "").toWellFormed() : v);
 }
 /* `loaded` gates every write: see init(). `lastWriteOk` is reported on /health
    so durability is a fact about the last write, not a fact about an env var —
@@ -75,6 +82,11 @@ export function nulSafeJson(db) {
 let loaded = false;
 let lastWriteOk = null;
 let lastWriteErr = "";
+
+/** True when we are configured for Postgres but the boot read failed, so
+    writes are disabled. Callers must refuse work they cannot persist rather
+    than accept it silently — see the refusal in server.js's /send. */
+export function degraded() { return DURABLE && !loaded; }
 /* Memoise the PROMISE, not the pool. Awaiting `import("pg")` yields, so two
    callers racing the first call would each construct a Pool and the loser's
    connections would leak for the life of the process. On failure the memo is
@@ -338,6 +350,8 @@ export function stats() {
     // failing, so report what actually happened as well.
     durable: DURABLE,
     loaded: DURABLE ? loaded : null,
+    // the one field to alert on: true means sends are being refused
+    degraded: degraded(),
     lastWriteOk,
     ...(lastWriteErr ? { lastWriteErr } : {}),
   };

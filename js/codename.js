@@ -26,16 +26,20 @@ const REFUSALS = {
   rate_recipient: "That address has already received several messages today. Give it a day.",
   too_long: "That's longer than a first message needs to be. Trim it a bit.",
   empty: "Write something first.",
-  /* Names the OTHER cause too. The relay runs on a free plan with no
-     persistent disk, so a redeploy erases every conversation — and when that
-     happens a student sees this message and reasonably concludes they typed
-     their own passphrase wrong. Blaming them for our data loss is the kind of
-     small dishonesty this product exists not to commit. */
-  /* Names both causes without asserting either. The previous wording declared
-     that the server had lost the conversation — true while storage was on the
-     instance disk, false now that it is in a database, and it told a student
-     who had merely mistyped a case-sensitive passphrase to stop trying. */
-  auth: "That codename and passphrase don't open a conversation. Most often that's a typo — the passphrase is case-sensitive, so check the capitals and the dash. If you're sure it's right, then the conversation itself is gone rather than hidden, and that's on us, not you: start a new one and your counsellor will still recognise what it's about.",
+  /* The relay genuinely cannot tell these cases apart — a wrong passphrase and
+     a deleted thread both fail the same lookup — so this must not pick one.
+     Two earlier versions each did: the first blamed the student ("check for
+     typos") for what was usually our own data loss; the second overcorrected
+     and declared the conversation gone, which was false once storage moved to
+     a database, and told a student who had merely mistyped to stop trying.
+     It also promised "your counsellor will still recognise what it's about",
+     which is not ours to promise: a new thread gets a NEW codename and the
+     counsellor receives first-contact copy with no link to the old one. */
+  auth: "That codename and passphrase don't open a conversation. Most often that's a typo — the passphrase is case-sensitive, so check the capitals and the dash. If you're sure it's right, we can't open it from our side either: conversations are deleted after 90 days, and we can't tell that apart from a mistyped passphrase. You can start a new one — it arrives with a new codename, so it helps to say it's you carrying on from before.",
+  /* Storage is down and the relay is refusing rather than pretending. Say
+     plainly that nothing was sent, because the failure happened before the
+     message went anywhere. */
+  storage: "Level 2 can't take a message right now — the part that saves conversations is down, so anything sent would vanish instead of reaching anyone. Nothing was sent, and nothing was lost. Try again later. If this can't wait, Level 3 needs no email at all, and a real person answers right now on ",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
@@ -101,8 +105,10 @@ function refusalNote(status, reason) {
         " — it prepares the conversation with no email at all.")));
     return;
   }
-  if (reason === "capacity") {
-    status.append(el("p", { class: "decode-note" }, REFUSALS.capacity, helpInline(), "."));
+  // both end mid-sentence so the caller's own region supplies the line —
+  // hard-coding one here would hand a Canadian 1-800 to a student in Australia
+  if (reason === "capacity" || reason === "storage") {
+    status.append(el("p", { class: "decode-note" }, REFUSALS[reason], helpInline(), "."));
     return;
   }
   status.append(note(REFUSALS[reason] || "Something went wrong. Nothing was sent."));
@@ -340,11 +346,14 @@ function renderCreated(res) {
           const b = e.currentTarget;
           b.disabled = true;
           b.textContent = "Opening…";
-          openThread(res.tag, res.pass, () => {
+          openThread(res.tag, res.pass, (fail) => {
             // stay HERE: this screen holds the once-shown passphrase
             b.disabled = false;
             b.textContent = "Open the conversation";
-            confirm.textContent = "Couldn't open it just now — your passphrase above still works. Try again in a minute.";
+            // "your passphrase above still works" is only true for a transient
+            // failure. If the relay refused for a reason it named, say that.
+            confirm.textContent = failText(fail,
+              "Couldn't open it just now — your passphrase above still works. Try again in a minute.");
           });
         },
       }, "Open the conversation"),
@@ -417,6 +426,16 @@ function focusThreadTitle() {
 
 /** onFail keeps the CURRENT screen alive — a failed refresh must never
     destroy the once-shown passphrase screen behind an unexplained login form */
+/* REFUSALS.capacity and .storage end mid-sentence on purpose, so the caller's
+   own region can supply the crisis line; they are NOT usable as bare text.
+   Everything else is a complete sentence and is preferred over a generic
+   "try again", which would talk past a refusal that is not transient. */
+const OPEN_ENDED = new Set(["capacity", "storage"]);
+function failText(fail, fallback) {
+  const r = fail && fail.reason;
+  return (r && REFUSALS[r] && !OPEN_ENDED.has(r)) ? REFUSALS[r] : fallback;
+}
+
 async function openThread(tag, pass, onFail) {
   const res = await relayPost("/thread", { tag, pass });
   if (res.ok) { renderThread(res, pass); focusThreadTitle(); }
@@ -504,8 +523,13 @@ function renderThread(thread, pass) {
           thread.adultReplied ? "They replied" : "Waiting for a reply")),
       el("button", {
         class: "btn btn--quiet", type: "button",
-        onclick: () => openThread(thread.tag, pass, () => {
-          status.append(fading(note("Couldn't refresh just now. Try again in a minute — nothing was lost.")));
+        onclick: () => openThread(thread.tag, pass, (fail) => {
+          // "nothing was lost" is a claim about storage, so keep it for the
+          // cases where it is certain — the request never reached the relay.
+          const transient = !fail || fail.reason === "offline" || fail.reason === "timeout";
+          status.append(fading(note(failText(fail, transient
+            ? "Couldn't refresh just now. Try again in a minute — nothing was lost."
+            : "Couldn't refresh just now. Try again in a minute."))));
         }),
       }, "Refresh")),
 

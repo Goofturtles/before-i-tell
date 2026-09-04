@@ -41,22 +41,38 @@ function transportKind() {
   return "none";
 }
 
-let transport = null;
+/* Memoise the PROMISE, not the transport — `await import()` yields, so two
+   sends racing the first call would each build a pooled transport and the
+   loser's TLS connections would leak for the life of the process. Same bug,
+   and same fix, as db_pool() in store.js. */
+let transportPromise = null;
 
-async function getTransport() {
-  if (transport) return transport;
-  const { default: nodemailer } = await import("nodemailer");
-  transport = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user: GMAIL_USER, pass: GMAIL_PASS },
-    // pooled: keep the TLS connection alive between sends — a fresh SMTP
-    // handshake per message added seconds to every "Sending…"
-    pool: true,
-    maxConnections: 1,
-  });
-  return transport;
+function getTransport() {
+  if (!transportPromise) {
+    transportPromise = (async () => {
+      const { default: nodemailer } = await import("nodemailer");
+      const t = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+        // pooled: keep the TLS connection alive between sends — a fresh SMTP
+        // handshake per message added seconds to every "Sending…"
+        pool: true,
+        maxConnections: 1,
+      });
+      /* A pooled transport is an EventEmitter and re-emits the pool's errors.
+         An unhandled 'error' event is FATAL in Node — precisely what was
+         crash-looping this relay every five minutes through imapflow, and
+         every restart used to erase every conversation. Gmail dropping an
+         idle pooled connection must be an ordinary logged event, not a
+         process kill. */
+      t.on("error", (err) =>
+        console.error("[mail] idle SMTP transport error:", err?.message ?? err));
+      return t;
+    })().catch((err) => { transportPromise = null; throw err; });
+  }
+  return transportPromise;
 }
 
 /** Brevo transactional-email HTTP API — POST over 443, no SMTP port needed. */
