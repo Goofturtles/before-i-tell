@@ -569,6 +569,33 @@ const { headerBlock } = await import("../inbox.js");
   for (const d of ["or.us", "qld.edu.au"]) {
     ok(`${d} is not treated as one organisation's domain`, isRegistrable(d) === false);
   }
+
+  /* SINGLE-PART machine formats. With no boundary there is nothing to split,
+     and the old code returned the body unconditionally — so a counsellor
+     sending an Outlook meeting invite put "BEGIN:VCALENDAR VERSION:2.0" under
+     "They replied" to a child who had just disclosed. text/* is NOT the right
+     test: text/calendar is text/*. Only what a human typed in gets shown. */
+  const cal = "From: c@wrdsb.ca\nContent-Type: text/calendar; method=REQUEST\n\n" +
+              "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR";
+  ok("a single-part calendar invite is not shown as the counsellor's words",
+     extractPlain(cal) === "", JSON.stringify(extractPlain(cal).slice(0, 60)));
+  const smime = "From: c@wrdsb.ca\nContent-Type: application/pkcs7-mime\n" +
+                "Content-Transfer-Encoding: base64\n\nMIAGCSqGSIb3DQEHAqCA";
+  ok("an opaque S/MIME message is not shown as binary mojibake",
+     extractPlain(smime) === "", JSON.stringify(extractPlain(smime).slice(0, 60)));
+  const broken = 'From: c@wrdsb.ca\nContent-Type: multipart/mixed; boundary="NOPE"\n\n' +
+                 "Content-Type: text/plain\n\nsome truncated thing";
+  ok("a declared boundary that never appears yields nothing, not raw MIME",
+     extractPlain(broken) === "", JSON.stringify(extractPlain(broken).slice(0, 60)));
+
+  // ...and the ordinary shapes must keep working
+  ok("a single-part plain reply is unchanged",
+     extractPlain("From: c@wrdsb.ca\nContent-Type: text/plain\n\nCome by Thursday.") === "Come by Thursday.");
+  ok("no Content-Type at all still counts as text (RFC 2045 default)",
+     extractPlain("From: c@wrdsb.ca\n\nCome by Thursday.") === "Come by Thursday.");
+  ok("a single-part HTML reply is de-tagged, not shown as markup",
+     extractPlain("From: c@wrdsb.ca\nContent-Type: text/html\n\n<p>Come by <b>Thursday</b>.</p>")
+       === "Come by Thursday.");
 }
 
 /* Subdomain, both directions: school mail routinely rewrites x@mail.board.ca

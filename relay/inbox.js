@@ -239,6 +239,7 @@ async function record(tag, body, fromHeader, rawHeaders) {
     // a false positive here (a board stamping Precedence: bulk on all mail)
     // destroys a real reply, so make it visible rather than silent
     rejected.automated++;
+    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: looks like machine mail (auto-reply, bounce or no-reply sender)`);
     return "rejected";
   }
   /* Sender check: the exact address, OR another address at the same school.
@@ -308,7 +309,13 @@ async function record(tag, body, fromHeader, rawHeaders) {
     clean = raw.length > MAX_REPLY ? raw.slice(-MAX_REPLY) : raw;
     console.warn(`[inbox] quote-stripping emptied a non-empty reply on ${tag.slice(0, 8)} — keeping the raw body`);
   }
-  if (!clean) { rejected.emptyBody++; return "rejected"; }
+  if (!clean) {
+    /* Log the tag, not just a counter. Once the mail is marked \Seen the
+       counter alone cannot tell you WHICH conversation lost a reply. */
+    rejected.emptyBody++;
+    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: no readable text (attachment-only, calendar or opaque message)`);
+    return "rejected";
+  }
   /* Same-domain replies are accepted, so the answer may not be from the adult
      the student chose to write to. The thread shows it as "They replied",
      which would then be a claim we cannot make — a student deciding whether to
@@ -505,38 +512,56 @@ export function extractPlain(source) {
      kept only the first half and dropped the instruction, silently. The
      comment above used to claim this was fixed; it was fixed only for
      messages that DO declare a boundary. Verified by running it. */
-  let parts = boundaries.length
-    ? s.split(new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"))
-    : [s];
+  /* SINGLE-PART: no boundary declared, so the message is its own body — and
+     its own Content-Type decides whether we may show it at all. The previous
+     version returned everything after the headers unconditionally, so a
+     counsellor sending a meeting invite from Outlook (text/calendar, no
+     boundary) had "BEGIN:VCALENDAR VERSION:2.0 PRODID:-//Microsoft…" filed
+     under "They replied" to a child who had just disclosed. An opaque S/MIME
+     message rendered as binary mojibake the same way. Both verified by running
+     it.
+
+     Note text/* is NOT the right test: text/calendar is text/*. Only the two
+     types a human actually wrote in are shown. An absent Content-Type means
+     text/plain per RFC 2045. */
+  if (!boundaries.length) {
+    const end = s.indexOf("\n\n");
+    if (end === -1) return "";
+    const head = s.slice(0, end);
+    const type = (/content-type:\s*([^;\s]+)/i.exec(unfold(head))?.[1] || "text/plain").toLowerCase();
+    const body = decodeBody(head, s.slice(end + 2));
+    if (type === "text/html") return htmlToText(body);
+    if (type === "text/plain") return body;
+    return "";
+  }
+
+  let parts = s.split(
+    new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"));
   // if the declared split found no text part at all, try the loose one before
   // giving up — a malformed boundary should not cost us the reply
-  if (boundaries.length && !parts.some((p) => /^content-type:\s*text\//im.test(p))) {
+  if (!parts.some((p) => /^content-type:\s*text\//im.test(p))) {
     parts = s.split(/\n--[^\n]+\n/);
   }
-  const candidates = parts.length > 1 ? parts : [s];
   let htmlFallback = "";
-  for (const part of candidates) {
+  for (const part of parts) {
     const split = part.indexOf("\n\n");
     if (split === -1) continue;
     const head = part.slice(0, split);
     const isHtml = /content-type:\s*text\/html/i.test(head);
-    if (parts.length > 1 && !/content-type:\s*text\/plain/i.test(head) && !isHtml) continue;
+    if (!/content-type:\s*text\/plain/i.test(head) && !isHtml) continue;
     const body = decodeBody(head, part.slice(split + 2));
     if (isHtml) { if (!htmlFallback) htmlFallback = htmlToText(body); continue; }
     if (body.trim()) return body;
   }
   if (htmlFallback) return htmlFallback;
-  /* Multipart with no readable text part — an attachment-only reply, a
-     calendar invite, an S/MIME-opaque message. Returning everything after the
-     first blank line here handed the student the raw MIME body: boundary
-     markers, part headers and base64 attachment bytes, filed under "They
-     replied" as their counsellor's words. Return nothing instead, so record()
-     counts rejected.emptyBody and logs it; a visible "no reply arrived" beats
-     a wall of machine output presented as an answer to a disclosure. */
-  if (boundaries.length) return "";
-  // single-part message: everything after the headers IS the body
-  const end = s.indexOf("\n\n");
-  return end === -1 ? "" : s.slice(end + 2);
+  /* Multipart with no readable text part — an attachment-only reply, or a
+     boundary that was declared but never appears (truncated mail). Returning
+     everything after the first blank line here handed the student the raw MIME
+     body: boundary markers, part headers and base64 bytes, filed as their
+     counsellor's words. Return nothing instead, so record() counts
+     rejected.emptyBody and logs the tag; a visible "no reply arrived" beats a
+     wall of machine output presented as an answer to a disclosure. */
+  return "";
 }
 
 /* ---------------- loop ---------------- */
