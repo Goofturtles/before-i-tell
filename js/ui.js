@@ -28,6 +28,13 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+/** append(), minus the footgun: native append STRINGIFIES null, so a
+    `cond ? node : null` child renders a literal "null". el() already filters
+    its children; this is the same guarantee for a bare parent.append(). */
+export function appendKids(parent, ...children) {
+  parent.append(...children.flat(Infinity).filter((c) => c != null && c !== false));
+}
+
 export function clearNode(node) {
   while (node.firstChild) node.removeChild(node.firstChild);
 }
@@ -253,11 +260,21 @@ export function wireCounterProbe() {
   } catch { /* no class → static numbers show, which is always correct */ }
 }
 
+/** Localise every crisis surface. Imported lazily so ui.js keeps no static
+    dependency on crisis.js (which imports ui.js back for el()). */
+function wireCrisisRegion() {
+  import("./crisis.js").then((m) => m.wireCrisis()).catch(() => {
+    /* module failed: the hard-coded Ontario markup in the HTML stays on screen,
+       which is a real set of numbers rather than an empty bar */
+  });
+}
+
 export function bootPage(store) {
   wireThemeToggle(store);
   wireMotionToggle(store);
   wireSkipLink();
   wireCrisisLink();
+  wireCrisisRegion();
   wireNavScroll();
   wireRevealFallback();
   wireCounterProbe();

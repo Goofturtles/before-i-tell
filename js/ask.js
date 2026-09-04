@@ -2,10 +2,31 @@
    persisted anywhere. Input passes through safety.guard/clear before
    retrieval sees it. Answers always cite; unknowns refuse honestly. */
 
-import { el, clearNode } from "./ui.js";
+import { el, clearNode, appendKids } from "./ui.js";
 import { safety } from "./safety.js";
 import { retrieval } from "./retrieval.js";
 import { voice } from "./voice.js";
+import { currentRegion } from "./crisis.js";
+
+/* The corpus is Ontario law. Outside Ontario the honest move is to say so
+   BEFORE the answers, not in a footnote under them — a student reading
+   "your counsellor must report this" has no way to know it was written for
+   somewhere else. Generating local rules instead would be the one failure
+   this product exists to prevent: a confident, wrong answer about whether a
+   disclosure gets passed on. */
+function jurisdictionNote() {
+  const r = currentRegion();
+  if (r.lawVerified) return null;
+  return el("div", { class: "decode-note" },
+    el("p", { style: "margin:0 0 8px" },
+      el("b", {}, "You're set to " + r.name + " — so read the legal answers below as background, not as your rules."),
+      " Every answer here is checked against ", el("b", {}, "Ontario, Canada"),
+      " law. Who must report what genuinely differs where you are, and we won't invent it."),
+    el("p", { style: "margin:0" },
+      "What still applies anywhere: how to prepare, how to choose an adult, and what to ask them. ",
+      el("b", {}, "Ask your school directly"),
+      " — \"if I tell you something, what would you have to pass on?\" is a fair question, and a good adult will answer it plainly."));
+}
 
 function renderAnswer(container, entry) {
   clearNode(container);
@@ -118,7 +139,10 @@ export const ask = {
       input.value = "";
     };
 
-    view.append(
+    // .filter: native append() STRINGIFIES null, so a conditional child like
+    // jurisdictionNote() (null in Ontario) prints a literal "null" on screen.
+    // Same trap as codename.js's add(); el() filters, append() does not.
+    appendKids(view,
       el("div", { class: "step-head" },
         el("p", { class: "eyebrow" }, "Level 1 · Ask"),
         el("h1", {}, "Ask anything. Decide later."),
@@ -126,6 +150,7 @@ export const ask = {
       el("form", { class: "ask-form", onsubmit: submit },
         input,
         el("button", { class: "btn btn--primary", type: "submit" }, "Ask")),
+      jurisdictionNote(),
       el("p", { class: "jurisdiction" }, "These rules are for Ontario schools. Other provinces and countries differ."),
       results,
       // the starting state does the work of the empty screen: real questions,

@@ -10,7 +10,7 @@
    After a deploy, a page may render one visit stale and be current the next —
    the honest trade for working offline. Bump VERSION to force a clean sweep. */
 
-const VERSION = "bit-v11"; // bump per deploy: forces one atomic fresh snapshot
+const VERSION = "bit-v12"; // bump per deploy: forces one atomic fresh snapshot
 
 const SHELL = [
   "./",
@@ -26,6 +26,8 @@ const SHELL = [
   "js/ask.js",
   "js/codename.js",
   "js/config.js",
+  "js/crisis.js",
+  "js/region.js",
   "js/corpus.js",
   "js/link.js",
   "js/retrieval.js",

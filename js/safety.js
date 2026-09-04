@@ -13,6 +13,7 @@
 import { store } from "./store.js";
 import { $, el, trapFocus } from "./ui.js";
 import { router } from "./router.js";
+import { currentRegion, crisisRoutes } from "./crisis.js";
 
 /* ---------------- pattern taxonomy ----------------
    ['’]? — smart-quote tolerant: iOS/Word type U+2019, which would otherwise
@@ -208,22 +209,10 @@ export const safety = {
           variant === "again"
             ? "It sounds like things are still heavy. You don't have to carry this through an app — a real person is ready right now."
             : "What you just wrote sounds heavy — heavier than a website should hold alone. You deserve a real person, right now. These are free, private, and used by thousands of people your age every day."),
-        el("div", { class: "takeover__routes" },
-          el("a", { class: "takeover__route", href: "tel:1-800-668-6868" },
-            el("span", {}, el("b", {}, "Kids Help Phone"), el("span", {}, "Talk to a real counsellor, 24/7. Anonymous.")),
-            el("span", { class: "num" }, "1-800-668-6868")),
-          el("a", { class: "takeover__route", href: "sms:686868?&body=CONNECT" },
-            el("span", {}, el("b", {}, "Text instead"), el("span", {}, "Text CONNECT — a trained volunteer answers.")),
-            el("span", { class: "num" }, "686868")),
-          el("a", { class: "takeover__route", href: "tel:988" },
-            el("span", {}, el("b", {}, "9-8-8 · call"), el("span", {}, "Suicide Crisis Helpline, 24/7.")),
-            el("span", { class: "num" }, "9-8-8")),
-          el("a", { class: "takeover__route", href: "sms:988" },
-            el("span", {}, el("b", {}, "9-8-8 · text"), el("span", {}, "Same helpline, by text.")),
-            el("span", { class: "num" }, "9-8-8")),
-          el("a", { class: "takeover__route", href: "tel:911" },
-            el("span", {}, el("b", {}, "In danger right now?"), el("span", {}, "Call 911.")),
-            el("span", { class: "num" }, "9-1-1"))),
+        // routed to the user's own country: a crisis number is worthless if it
+        // is for the wrong side of the world. Every line comes from region.js,
+        // where each one is recorded with the operator's site it was read from
+        crisisRoutes(),
         el("div", { class: "takeover__honest" }, ...honestNote),
         el("div", { class: "btn-row btn-row--between", style: "margin-top:0" },
           el("button", { class: "btn btn--quiet", type: "button", onclick: () => quickExit() },
