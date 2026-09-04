@@ -119,6 +119,12 @@ const PUBLIC_SUFFIX = [
   /^mb\.ca$/i, /^sk\.ca$/i, /^nb\.ca$/i, /^nl\.ca$/i, /^pe\.ca$/i,
   /^edu\.[a-z]{2}$/i, /^ac\.[a-z]{2}$/i, /^sch\.[a-z]{2}$/i,
   /^k12\.[a-z]{2}\.us$/i, /^edu\.on\.ca$/i,
+  /* Reachable through schools.js's own accepted shapes: it admits
+     *.k12.<st>.us and *.edu.au, so without these a thread to
+     smith.k12.or.us would accept a forged sender at "or.us", and one to
+     qld.edu.au a sender at "qld.edu.au". */
+  /^[a-z]{2}\.us$/i,
+  /^(?:act|nsw|nt|qld|sa|tas|vic|wa|catholic|schools)\.edu\.au$/i,
 ];
 
 /** Can this domain be registered by one organisation — i.e. is it safe to
@@ -154,10 +160,13 @@ export function authFailed(headers) {
      against a real folded header. */
   const h = unfold(headerBlock(headers)).toLowerCase();
   const lines = h.split("\n").filter((l) => l.startsWith("authentication-results:"));
-  if (!lines.length) return false;
-  const all = lines.join(" ");
-  if (/dmarc=fail/.test(all)) return true;
-  return /spf=fail/.test(all) && /dkim=fail/.test(all);
+  /* Evaluate each header on its OWN. A message can carry several — one from
+     the board's gateway, one from Gmail — and joining them let an upstream
+     `spf=fail` combine with Gmail's `dkim=fail` to read as forged even when
+     Gmail's own verdict was spf=pass, dmarc=pass. That would consume a real
+     counsellor's reply on evidence no single server actually gave. */
+  return lines.some((l) =>
+    /dmarc=fail/.test(l) || (/spf=fail/.test(l) && /dkim=fail/.test(l)));
 }
 
 /** Everything before the first blank line. These checks must see HEADERS only:
@@ -179,7 +188,13 @@ export function isAutomated(headers) {
     || /^precedence:\s*(bulk|auto_reply|junk|list)/im.test(h)
     || /^x-auto(response|reply)/im.test(h)
     || /^content-type:\s*multipart\/report/im.test(h)          // DSN / bounce
-    || /^from:[^\n]*(mailer-daemon|postmaster|no-?reply|do-?not-?reply)/im.test(h);
+    /* Test the ADDRESS, not the whole From line. Unfolding made that line
+       include the display name, so a counsellor whose signature reads
+       "Jane — do-not-reply to this thread" had their genuine answer dropped
+       as machine mail. What matters is who sent it, not what they called
+       themselves. */
+    || /(mailer-daemon|postmaster|no-?reply|do-?not-?reply)/i
+         .test(addressOf(/^from:\s*(.+)$/im.exec(h)?.[1] || ""));
 }
 
 /**
@@ -478,14 +493,23 @@ export function extractPlain(source) {
      image bytes. Verified by running it before this fix.
 
      Quoted form handled too: a boundary may legally contain spaces. */
-  const boundaries = [...s.matchAll(/boundary=(?:"([^"]*)"|([^;\s]+))/gi)]
+  const boundaries = [...unfold(s).matchAll(/boundary=(?:"([^"]*)"|([^;\s]+))/gi)]
     .map((m) => m[1] ?? m[2]).filter(Boolean);
   const esc = (b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /* NO boundary declared means the message is not multipart, so there is
+     nothing to split. Splitting anyway is what the loose `\n--…\n` pattern
+     did, and it cut a plain-text reply in half at any line of dashes:
+       Thanks for writing.
+       ---
+       Come to my office Thursday.
+     kept only the first half and dropped the instruction, silently. The
+     comment above used to claim this was fixed; it was fixed only for
+     messages that DO declare a boundary. Verified by running it. */
   let parts = boundaries.length
     ? s.split(new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"))
-    : s.split(/\n--[^\n]+\n/);
-  /* Belt and braces: if the declared split found no usable text part, fall
-     back to the loose one rather than risk returning raw MIME. */
+    : [s];
+  // if the declared split found no text part at all, try the loose one before
+  // giving up — a malformed boundary should not cost us the reply
   if (boundaries.length && !parts.some((p) => /^content-type:\s*text\//im.test(p))) {
     parts = s.split(/\n--[^\n]+\n/);
   }
@@ -502,7 +526,17 @@ export function extractPlain(source) {
     if (body.trim()) return body;
   }
   if (htmlFallback) return htmlFallback;
-  return s.slice(s.indexOf("\n\n") + 2);
+  /* Multipart with no readable text part — an attachment-only reply, a
+     calendar invite, an S/MIME-opaque message. Returning everything after the
+     first blank line here handed the student the raw MIME body: boundary
+     markers, part headers and base64 attachment bytes, filed under "They
+     replied" as their counsellor's words. Return nothing instead, so record()
+     counts rejected.emptyBody and logs it; a visible "no reply arrived" beats
+     a wall of machine output presented as an answer to a disclosure. */
+  if (boundaries.length) return "";
+  // single-part message: everything after the headers IS the body
+  const end = s.indexOf("\n\n");
+  return end === -1 ? "" : s.slice(end + 2);
 }
 
 /* ---------------- loop ---------------- */

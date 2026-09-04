@@ -527,6 +527,50 @@ const { headerBlock } = await import("../inbox.js");
      /Come to my office Thursday\./.test(out), JSON.stringify(out.slice(0, 80)));
 }
 
+/* Silent-loss and machine-output cases in MIME extraction. Both were live:
+   a plain reply was cut in half at a line of dashes, and an attachment-only
+   reply handed the student raw boundary markers and base64. */
+{
+  const { extractPlain, authFailed, isAutomated, isRegistrable } = await import("../inbox.js");
+
+  const dashes = "From: c@wrdsb.ca\nContent-Type: text/plain\n\n" +
+                 "Thanks for writing.\n\n---\n\nCome to my office Thursday.";
+  ok("a plain reply is NOT truncated at a --- separator",
+     /office Thursday/.test(extractPlain(dashes)), JSON.stringify(extractPlain(dashes)));
+
+  const attachOnly = [
+    "From: c@wrdsb.ca", 'Content-Type: multipart/mixed; boundary="B1"', "",
+    "--B1", "Content-Type: text/plain", "", "",
+    "--B1", "Content-Type: application/pdf", "Content-Transfer-Encoding: base64", "",
+    "JVBERi0xLjQKstuff", "--B1--", "",
+  ].join("\n");
+  const got = extractPlain(attachOnly);
+  ok("an attachment-only reply yields nothing, never raw MIME",
+     got === "" , JSON.stringify(got.slice(0, 80)));
+
+  /* Several Authentication-Results headers are normal (board gateway, then
+     Gmail). Joining them let an upstream spf=fail combine with Gmail's
+     dkim=fail to read as forged, consuming a real reply on evidence no single
+     server gave. */
+  ok("auth verdicts are judged per header, not pooled across them",
+     authFailed("Authentication-Results: gw.board.ca; spf=fail\n" +
+                "Authentication-Results: mx.google.com;\n   dkim=fail; spf=pass; dmarc=pass\n" +
+                "From: a@b.ca\n\nbody") === false);
+  ok("a single header failing both SPF and DKIM still counts",
+     authFailed("Authentication-Results: mx.google.com;\n   dkim=fail; spf=fail\nFrom: a@b.ca\n\nb") === true);
+
+  // unfolding made isAutomated see display names; a signature must not drop a reply
+  ok("a display name mentioning do-not-reply does not drop a real reply",
+     isAutomated('From: "Jane, do-not-reply to this thread" <jane@wrdsb.ca>\nSubject: x\n\nb') === false);
+  ok("an actual no-reply sender is still treated as machine mail",
+     isAutomated("From: Board Mailer <no-reply@wrdsb.ca>\nSubject: x\n\nb") === true);
+
+  // suffixes reachable through shapes schools.js itself accepts
+  for (const d of ["or.us", "qld.edu.au"]) {
+    ok(`${d} is not treated as one organisation's domain`, isRegistrable(d) === false);
+  }
+}
+
 /* Subdomain, both directions: school mail routinely rewrites x@mail.board.ca
    to the primary x@board.ca, and refusing that is the exact failure the
    same-domain policy exists to fix. "evilwrdsb.ca" must NOT pass as one. */
