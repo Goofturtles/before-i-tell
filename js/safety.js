@@ -13,7 +13,7 @@
 import { store } from "./store.js";
 import { $, el, trapFocus } from "./ui.js";
 import { router } from "./router.js";
-import { currentRegion, crisisRoutes } from "./crisis.js";
+import { currentRegion, crisisRoutes, bannerLines } from "./crisis.js";
 
 /* ---------------- pattern taxonomy ----------------
    ['’]? — smart-quote tolerant: iOS/Word type U+2019, which would otherwise
@@ -191,7 +191,21 @@ export const safety = {
     // that duty is about abuse/neglect)
     const storedFam = store.session.get("s")?.fam;
     const fams = this._lastFams || new Set([storedFam === "abuse" ? "abuse" : "self"]);
-    const honestNote = fams.has("abuse")
+
+    /* The note below states ONTARIO law. Outside Ontario we must not assert
+       it — reporting duties differ by country, and telling a student in
+       Australia that a disclosure triggers "a children's aid society" is a
+       confident, wrong claim at the worst possible moment. Where the law
+       isn't verified, say what is true everywhere instead: the anonymous
+       line is anonymous, and their own school can answer the rest. */
+    const lawKnown = currentRegion().lawVerified;
+    const anonLine = currentRegion().lines[0]?.name || "The line above";
+    const honestNote = !lawKnown
+      ? [
+          "Honest note, because you deserve the truth: what a school adult would have to pass on depends on where you live, and we only have that verified for Ontario, Canada — so we're not going to guess at yours. ",
+          anonLine + " is anonymous: you choose what to share and when, and nothing you say there is reported anywhere. If you want to know your own school's rules, you're allowed to ask them straight out before you tell them anything.",
+        ]
+      : fams.has("abuse")
       ? [
           "Honest note, because you deserve the truth: if you tell a school adult that someone is hurting you and you're under 16, the law requires them to contact a children's aid society — that exists to protect you, and it can't be undone once said. At 16–17, reporting is allowed but not automatic. ",
           "Kids Help Phone is different: it's anonymous, so you choose what to share and when. Knowing this before you decide is the whole point of this site.",
@@ -314,10 +328,13 @@ function renderBanner() {
      `body:has(.safety-banner)` in components.css for most targets; the crisis
      jump measures nav + banner live at click time — see ui.js.) */
   setTimeout(() => {
-    banner.append(
-      el("span", {}, "Whatever is going on, you don't have to figure it out alone. "),
-      el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone 1-800-668-6868"),
-      el("span", {}, " · "),
-      el("a", { href: "sms:686868?&body=CONNECT" }, "text CONNECT to 686868"));
+    // the banner persists for the whole session, so a hard-coded Ontario
+    // number here would sit undialable in front of a UK or AU student for as
+    // long as they use the site
+    banner.append(el("span", {}, "Whatever is going on, you don't have to figure it out alone. "));
+    bannerLines().forEach((node, i) => {
+      if (i) banner.append(el("span", {}, " · "));
+      banner.append(node);
+    });
   }, 50);
 }

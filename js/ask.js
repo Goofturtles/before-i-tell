@@ -150,8 +150,12 @@ export const ask = {
       el("form", { class: "ask-form", onsubmit: submit },
         input,
         el("button", { class: "btn btn--primary", type: "submit" }, "Ask")),
+      // one disclaimer, not two: outside Ontario jurisdictionNote() says this
+      // and more, so the static line would just repeat it
       jurisdictionNote(),
-      el("p", { class: "jurisdiction" }, "These rules are for Ontario schools. Other provinces and countries differ."),
+      currentRegion().lawVerified
+        ? el("p", { class: "jurisdiction" }, "These rules are for Ontario schools. Other provinces and countries differ.")
+        : null,
       results,
       // the starting state does the work of the empty screen: real questions,
       // tappable, in the order a scared person actually asks them

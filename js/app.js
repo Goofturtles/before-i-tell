@@ -522,6 +522,14 @@ store.onWriteError = () => {
 // order matters: the router must render its first view BEFORE safety.restore
 // can lock it — otherwise a refresh mid-takeover leaves a blank page behind
 // the dialog, and "I'm safe — take me back" returns to nothing
+/* The region picker re-renders in place rather than reloading (a reload would
+   destroy an unsent Level 2 message). Screens whose copy depends on the
+   region — Ask's jurisdiction note — must therefore redraw themselves. */
+addEventListener("bit:region", () => {
+  const r = router.current();
+  if (r === "/ask") router.go(r);
+});
+
 router.start({
   "/": render.home,
   "/ask": render.ask,

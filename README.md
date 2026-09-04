@@ -75,7 +75,14 @@ Locally: no build step. ES modules require an HTTP server (file:// won't work):
 python -m http.server 3487 -d before-i-tell
 ```
 
-Then open http://localhost:3487/. Dev note: the service worker serves cache-first, so after editing a file the first reload can be one version behind (the refresh lands in the background); reload twice, or unregister the SW in DevTools while iterating.
+Then open http://localhost:3487/.
+
+Check the crisis data (every region must offer a dialable, actionable route —
+this is the highest-stakes data in the product):
+
+```bash
+node before-i-tell/test/region.test.mjs
+``` Dev note: the service worker serves cache-first, so after editing a file the first reload can be one version behind (the refresh lands in the background); reload twice, or unregister the SW in DevTools while iterating.
 
 ## Structure
 

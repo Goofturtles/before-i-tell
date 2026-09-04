@@ -58,28 +58,46 @@ export function crisisRoutes() {
         el("span", { class: "num" }, "Open")));
   }
 
+  // Always DIALABLE, never a dead row. Where we don't know the local
+  // emergency number, 112 is the honest best offer: it reaches emergency
+  // services across the EU and, via GSM, from most mobile networks worldwide.
   rows.push(
     r.emergency
       ? el("a", { class: "takeover__route", href: "tel:" + r.emergency },
           el("span", {}, el("b", {}, "In danger right now?"), el("span", {}, "Call " + r.emergency + ".")),
           el("span", { class: "num" }, r.emergency))
-      : el("div", { class: "takeover__route" },
+      : el("a", { class: "takeover__route", href: "tel:112" },
           el("span", {}, el("b", {}, "In danger right now?"),
-            el("span", {}, "Call your local emergency number — in most of Europe it's 112.")),
-          el("span", { class: "num" }, "—")));
+            el("span", {}, "Use your local emergency number. From most mobiles, 112 also connects.")),
+          el("span", { class: "num" }, "112")));
 
   return el("div", { class: "takeover__routes" }, rows);
+}
+
+/** The tier-2 banner's inline links — same data, so the banner can never
+    advertise a number the takeover doesn't. */
+export function bannerLines() {
+  const r = currentRegion();
+  if (r.lines.length) {
+    return r.lines.slice(0, 2).map((line) =>
+      el("a", { href: telHref(line) }, line.name + " " + line.display));
+  }
+  return [el("a", {
+    href: r.directory ? r.directory.url : "https://findahelpline.com/",
+    target: "_blank", rel: "noopener noreferrer",
+  }, "Find a helpline where you are")];
 }
 
 /** The compact strip at the bottom of every page. */
 export function crisisStrip(container) {
   if (!container) return;
   const r = currentRegion();
-  const label = container.querySelector(".crisis__label");
   const inner = container.querySelector(".crisis__inner");
   if (!inner) return;
-  // keep the heading, replace the links
-  [...inner.querySelectorAll("a, .muted")].forEach((n) => n.remove());
+  // keep the page's own heading (the adult page says "If they're in danger
+  // right now:", which must not be replaced with the teen-voiced label), and
+  // clear the picker too or repeat calls stack duplicate selects
+  [...inner.querySelectorAll("a, .muted, .region-pick")].forEach((n) => n.remove());
 
   r.lines.forEach((line) => {
     inner.append(el("a", { href: telHref(line) }, line.name + " " + line.display));
@@ -89,14 +107,23 @@ export function crisisStrip(container) {
   }
   inner.append(el("span", { class: "muted" },
     r.emergency ? "In immediate danger: " + r.emergency : "In immediate danger: your local emergency number"));
-  if (label) label.textContent = "Need someone right now?";
 
   // The picker lives WITH the numbers, not buried in settings: its only job is
   // to make sure the numbers above are the right ones for where you are.
+  /* Re-render in place; do NOT reload. A reload would (a) destroy an unsent
+     Level 2 message, which is never persisted, (b) wipe the choice itself in
+     private browsing, where the store is an in-memory Map, and (c) fire on
+     every arrow key, since a closed <select> emits `change` per option on
+     Windows — trapping keyboard users on the second entry. */
   const sel = el("select", {
     class: "region-select",
     "aria-label": "Show help for which country",
-    onchange: (e) => { setRegion(e.target.value); location.reload(); },
+    onchange: (e) => {
+      setRegion(e.target.value);
+      wireCrisis();
+      // tell the rest of the app so any region-dependent screen can redraw
+      dispatchEvent(new CustomEvent("bit:region"));
+    },
   }, REGION_ORDER.map((id) =>
     el("option", { value: id, selected: id === currentRegionId() }, REGIONS[id].name)));
 

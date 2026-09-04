@@ -135,14 +135,22 @@ export const REGION_ORDER = ["on-ca", "ca", "us", "gb", "ie", "au", "nz", "za", 
 export function guessRegion() {
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (/^America\/(Toronto|Iqaluit|Nipigon|Thunder_Bay|Atikokan)/.test(tz)) return "on-ca";
-    if (/^America\/(Vancouver|Edmonton|Winnipeg|Halifax|St_Johns|Regina|Whitehorse|Yellowknife|Moncton|Glace_Bay|Goose_Bay|Blanc-Sablon|Dawson|Inuvik|Rankin_Inlet|Resolute|Cambridge_Bay|Creston|Fort_Nelson|Swift_Current)/.test(tz)) return "ca";
-    if (/^America\//.test(tz)) return "us";           // rough, and confirmable
-    if (/^Europe\/(London|Belfast)/.test(tz)) return "gb";
-    if (/^Europe\/Dublin/.test(tz)) return "ie";
+    // Ontario proper. Iqaluit is deliberately NOT here: it is Nunavut, and
+    // matching it would set lawVerified and silently suppress the "these are
+    // Ontario's rules" note for someone the corpus does not cover.
+    if (/^America\/(Toronto|Nipigon|Thunder_Bay|Atikokan)$/.test(tz)) return "on-ca";
+    if (/^America\/(Vancouver|Edmonton|Winnipeg|Halifax|St_Johns|Regina|Whitehorse|Yellowknife|Moncton|Glace_Bay|Goose_Bay|Blanc-Sablon|Dawson|Inuvik|Rankin_Inlet|Resolute|Cambridge_Bay|Creston|Fort_Nelson|Swift_Current|Iqaluit|Pangnirtung|Coral_Harbour|Whitehorse)$/.test(tz)) return "ca";
+    // an explicit allowlist, NOT /^America\//: that prefix covers São Paulo,
+    // Bogotá and Buenos Aires, and defaulting them to 988/911 would hand a
+    // student in Brazil two numbers that do not work
+    if (/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Adak|Juneau|Sitka|Nome|Yakutat|Metlakatla|Detroit|Indiana\/|Kentucky\/|Boise|Menominee|North_Dakota\/)/.test(tz)) return "us";
+    if (/^Pacific\/(Honolulu)$/.test(tz)) return "us";
+    if (/^Europe\/(London|Belfast)$/.test(tz)) return "gb";
+    if (/^Europe\/Dublin$/.test(tz)) return "ie";
     if (/^Australia\//.test(tz)) return "au";
-    if (/^Pacific\/(Auckland|Chatham)/.test(tz)) return "nz";
-    if (/^Africa\/(Johannesburg)/.test(tz)) return "za";
+    if (/^Pacific\/(Auckland|Chatham)$/.test(tz)) return "nz";
+    if (/^Africa\/Johannesburg$/.test(tz)) return "za";
   } catch { /* no Intl: fall through */ }
+  // everywhere else gets the honest default, not a nearby-sounding guess
   return "other";
 }
