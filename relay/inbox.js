@@ -88,9 +88,15 @@ export function isAutomated(headers) {
 }
 
 /**
- * File a reply — only if it genuinely came from the adult this thread writes to.
+ * File a reply — only if it came from the school this thread writes to.
  * Anyone the counsellor forwards our email to holds the tag (it's in Reply-To),
- * so the tag alone must NOT be treated as proof of identity.
+ * so the tag alone must NOT be treated as proof of identity. The address is
+ * checked against the thread's recipient, and accepted from any other address
+ * at the SAME DOMAIN — an operator decision, made because aliases, shared
+ * guidance@ mailboxes and Exchange address-rewriting were causing real
+ * answers to children to be refused. A reply from a different address is
+ * labelled as such in the body, so the thread never implies the student is
+ * hearing back from the specific adult they chose.
  */
 /* Returns one of three outcomes, because "not filed" is two different things
    and the caller must treat them oppositely:
@@ -113,20 +119,23 @@ async function record(tag, body, fromHeader, rawHeaders) {
     return "rejected";
   }
   if (isAutomated(rawHeaders)) return "rejected";
-  const sender = addressOf(fromHeader);
-  if (!sender || sender !== String(thread.to).toLowerCase()) {
-    /* Deliberately still an EXACT match. Accepting any same-domain sender
-       would let anyone at the school who has the tag write into a child's
-       conversation, and the tag travels in Reply-To of a forwardable email —
-       that is a security decision for the operator, not a bug fix.
+  /* Sender check: the exact address, OR another address at the same school.
+     The operator chose same-domain deliberately, because refusing an alias,
+     a shared guidance@ mailbox, or an Exchange-rewritten address meant real
+     answers to children were never delivered.
 
-       But the cost is real and was invisible: a counsellor answering from an
-       alias, or from their own account on a shared guidance@ mailbox, is
-       refused and the message is consumed. It is not destroyed — it stays in
-       the relay's mailbox, marked read — but nobody knows to look. Count it
-       so /health shows the operator this is happening. */
+     The accepted risk: the thread tag rides in the Reply-To of an email a
+     counsellor can forward, so a colleague at that school who receives a
+     forward could write into the conversation. It is bounded to that one
+     school's domain — never a stranger, never another board. */
+  const sender = addressOf(fromHeader);
+  const to = String(thread.to).toLowerCase();
+  const senderDomain = sender.includes("@") ? sender.split("@").pop() : "";
+  const threadDomain = String(thread.domain || to.split("@").pop() || "").toLowerCase();
+  const sameDomain = Boolean(senderDomain) && senderDomain === threadDomain;
+  if (!sender || (sender !== to && !sameDomain)) {
     rejected.senderMismatch++;
-    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender ${sender || "(unparseable)"} is not this thread's recipient — it stays in the mailbox, marked read`);
+    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender ${sender || "(unparseable)"} is outside this thread's school — it stays in the mailbox, marked read`);
     return "rejected";
   }
   let clean = stripQuoted(body);
@@ -154,6 +163,14 @@ async function record(tag, body, fromHeader, rawHeaders) {
     console.warn(`[inbox] quote-stripping emptied a non-empty reply on ${tag.slice(0, 8)} — keeping the raw body`);
   }
   if (!clean) { rejected.emptyBody++; return "rejected"; }
+  /* Same-domain replies are accepted, so the answer may not be from the adult
+     the student chose to write to. The thread shows it as "They replied",
+     which would then be a claim we cannot make — a student deciding whether to
+     keep talking deserves to know a different person is reading. Name the
+     address; it is a school work address, not private information. */
+  if (sender !== to) {
+    clean = `[Replied by ${sender} — a different address at the same school, not the one you wrote to.]\n\n${clean}`;
+  }
   const msg = addMessage(tag, "adult", clean);
   /* degraded() is decided once at boot and never flips, so it cannot see a
      database that dies mid-life — the expected end state on a free plan.

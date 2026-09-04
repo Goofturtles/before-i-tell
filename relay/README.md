@@ -64,11 +64,22 @@ Come by my office any time this week.
 
 The tag is in the `.eml` you just generated. The poller picks it up within 20s.
 
-**The `From:` line is required, and must be the exact address the thread writes
-to.** A reply is only filed if it genuinely came from that adult — anyone the
-counsellor forwards our email to also holds the tag, so the tag alone is not
-proof of identity. Without a matching `From:`, the drop file is rejected as an
-impostor and renamed `.done`, which looks like the reply silently vanishing.
+**The `From:` line is required, and must be at the same domain the thread
+writes to.** The tag alone is not proof of identity — anyone the counsellor
+forwards our email to also holds it — so the sender is checked too. Without a
+matching `From:`, the drop file is rejected as an impostor and renamed
+`.done`, which looks like the reply silently vanishing.
+
+**Sender policy (an operator decision, not an accident):** the thread's exact
+recipient is accepted, and so is any other address at the *same school domain*.
+Strict exact-matching silently swallowed real answers — aliases, shared
+`guidance@` mailboxes, and Exchange rewriting an address to the primary SMTP
+one. The accepted risk is that a colleague at that school who receives a
+forwarded copy could write into the conversation; it can never be a stranger
+or another board. When the sender is not the exact recipient, the stored
+message is prefixed with who actually replied, so the thread never implies the
+student is hearing back from the specific adult they chose. Refusals are
+counted at `/health` as `rejectedReplies`.
 
 Run the test suites (no network, no install):
 

@@ -395,6 +395,35 @@ const { headerBlock } = await import("../inbox.js");
      "tail of stored reply: " + JSON.stringify((reply?.body || "").slice(-60)));
 }
 
+/* Same-domain senders are accepted (operator's decision): an alias, a shared
+   guidance@ mailbox, or Exchange rewriting an address must not silently swallow
+   a counsellor's answer. A DIFFERENT school must still be refused. */
+{
+  const t = await post("/send", { to: "guidance@wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "alias.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: jane.smith@wrdsb.ca\nSubject: Re:\n\nCome by Thursday.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  const reply = read.json.messages?.find((m) => m.from === "adult");
+  ok("an alias at the same school is accepted", Boolean(reply),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
+  /* and the student is told it came from someone else — the thread says
+     "They replied", which would otherwise name the wrong person */
+  ok("a different sender at that school is disclosed to the student",
+     /jane\.smith@wrdsb\.ca/.test(reply?.body || "") && /not the one you wrote to/.test(reply?.body || ""),
+     JSON.stringify((reply?.body || "").slice(0, 90)));
+}
+{
+  const t = await post("/send", { to: "counsellor@hdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "otherschool.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: stranger@tdsb.on.ca\nSubject: Re:\n\nLet me in.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("a sender from a DIFFERENT school is still refused",
+     !read.json.messages?.some((m) => m.from === "adult"),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
+}
+
 /* RFC 5322 header folding. Real mail wraps a long From: onto a second line
    indented with whitespace; a single-line regex then captured only the display
    name, addressOf() returned "", and the reply was consumed as an impostor. */
