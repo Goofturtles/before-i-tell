@@ -95,7 +95,12 @@ function fading(node, ms = 12000) {
 
 /** Refusals that offer a way out render as rich notes with a real link —
     "use Level 3" as plain text is a dead end on a phone. */
-function refusalNote(status, reason) {
+/* The ONLY safe way to render a refusal. REFUSALS.capacity and .storage end
+   mid-sentence by design, so appending one with a bare note() prints
+   "…answers right now on " and swallows the crisis link entirely. Every
+   refusal path must come through here; `fallback` lets each caller keep its
+   own wording for a reason we don't recognise. */
+function refusalNote(status, reason, fallback = "Something went wrong. Nothing was sent.") {
   clearNode(status);
   if (reason === "personal" || reason === "unknown") {
     status.append(el("div", { class: "decode-note" },
@@ -111,7 +116,7 @@ function refusalNote(status, reason) {
     status.append(el("p", { class: "decode-note" }, REFUSALS[reason], helpInline(), "."));
     return;
   }
-  status.append(note(REFUSALS[reason] || "Something went wrong. Nothing was sent."));
+  status.append(note(REFUSALS[reason] || fallback));
 }
 
 /* The email template, mirrored from relay/mailer.js bodyText(first) — kept in
@@ -391,7 +396,8 @@ function renderResume(saved) {
       focusThreadTitle();
       return;
     }
-    status.append(note(REFUSALS[res.reason] || "Couldn't open that conversation."));
+    // /thread now returns storage during an outage, which ends mid-sentence
+    refusalNote(status, res.reason, "Couldn't open that conversation.");
   });
 
   add(
@@ -479,7 +485,8 @@ function renderThread(thread, pass) {
     replyBtn.disabled = false;
     replyBtn.textContent = "Send reply";
     if (res.reason === "crisis") { crisisFork(status, { fam: res.fam, restoreTo: replyBox }); return; }
-    status.append(note(REFUSALS[res.reason] || "Couldn't send that."));
+    // /send returns storage and capacity here too, and both end mid-sentence
+    refusalNote(status, res.reason, "Couldn't send that.");
   });
 
   /* A conversation should look like one. Position and colour carry who said
@@ -524,6 +531,11 @@ function renderThread(thread, pass) {
       el("button", {
         class: "btn btn--quiet", type: "button",
         onclick: () => openThread(thread.tag, pass, (fail) => {
+          /* An outage answers "storage" here now. It ends mid-sentence, so it
+             has to go through refusalNote for the region's crisis line — and
+             it should persist rather than fade, because it explains why the
+             conversation the student is looking at cannot be refreshed. */
+          if (fail && OPEN_ENDED.has(fail.reason)) { refusalNote(status, fail.reason); return; }
           // "nothing was lost" is a claim about storage, so keep it for the
           // cases where it is certain — the request never reached the relay.
           const transient = !fail || fail.reason === "offline" || fail.reason === "timeout";

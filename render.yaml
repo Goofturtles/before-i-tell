@@ -58,6 +58,13 @@ services:
     # any change here — "durable":false means back to losing conversations.
     #
     # ⚠️ Render's FREE Postgres EXPIRES 30 DAYS after creation (this one:
-    # 2026-10-04) and is then deleted. Before that date either upgrade the
-    # database or create a new one and relink it, or the relay silently reverts
-    # to the ephemeral filesystem.
+    # 2026-10-04) and is then deleted. Upgrade it, or create a replacement and
+    # relink it, before that date.
+    #
+    # What actually happens on expiry, so the fix is not misdirected: with
+    # DATABASE_URL still set but the database gone, the boot read fails and
+    # the relay does NOT fall back to the filesystem — it refuses. /send and
+    # /thread answer 503 "storage", the poller leaves counsellor replies
+    # unread rather than consuming them, and /health reports degraded:true.
+    # Loud and lossless, by design. Clearing DATABASE_URL is the thing that
+    # would silently resume losing conversations, so do not "fix" it that way.

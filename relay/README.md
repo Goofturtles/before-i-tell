@@ -163,7 +163,14 @@ rather than breaking.
 
 Refusal reasons a client should handle: `personal`, `unknown`, `malformed`,
 `blocked`, `crisis`, `rate`, `rate_recipient`, `too_long`, `empty`, `auth`,
-`delivery`, `offline`.
+`delivery`, `offline`, `timeout`, `capacity`, `storage`.
+
+`capacity` and `storage` are returned by **both** `/send` and `/thread`, and
+their copy deliberately ends mid-sentence so the client can append the crisis
+line for the reader's own region — render them through `refusalNote()`, never
+as bare text, or the sentence dangles and the helpline link disappears.
+`storage` means the boot read failed and writes are disabled: nothing was
+sent, nothing was lost, and no passphrase was issued.
 
 ---
 

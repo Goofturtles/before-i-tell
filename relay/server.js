@@ -239,6 +239,21 @@ async function handleSend(req, res, body) {
   }
 
   const stored = store.addMessage(thread.tag, "student", message);
+
+  /* Persist BEFORE emailing, and refuse if the write failed. degraded() above
+     only catches a failed boot read; writes can also begin failing after a
+     good one, which leaves `loaded` true and would sail through. Sending
+     first and discovering that afterwards is unrecoverable: the counsellor
+     has the message, but the student's passphrase opens nothing and the
+     reply can never be matched to a thread. Checking here keeps the refusal
+     honest — the email has not gone out, so "nothing was sent" is true. */
+  if ((await store.settled()) === false) {
+    console.error("[send] refusing: the message could not be persisted");
+    if (first) store.dropThread(thread.tag);
+    else store.dropMessage(thread.tag, stored);
+    return json(res, 503, { ok: false, reason: "storage" });
+  }
+
   try {
     await sendToCounsellor({ to: thread.to, codename: thread.codename, message, tag: thread.tag, first });
   } catch (err) {
@@ -263,6 +278,16 @@ async function handleSend(req, res, body) {
 }
 
 async function handleThread(req, res, body) {
+  /* Degraded storage makes every lookup miss, because the store is empty by
+     construction. Falling through to the 403 below would answer "auth", and
+     the client's auth copy says the conversation may have been deleted and
+     the student should start a new one. All three parts are wrong here: the
+     relay CAN tell this case apart, the conversation is not gone, and a new
+     one is impossible because /send is refusing too. This is the likeliest
+     outage path there is — it is the student who was told to come back for
+     the reply. Answer with what is actually true. */
+  if (store.degraded()) return json(res, 503, { ok: false, reason: "storage" });
+
   const key = ipKey(req);
   // 600/h: an entire venue's WiFi shares one key — see the send-cap note
   if (!bump("read:" + key, 600, HOUR)) return json(res, 429, { ok: false, reason: "rate" });

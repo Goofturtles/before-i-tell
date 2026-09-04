@@ -1,9 +1,14 @@
-/* store.js — flat-file thread store.
+/* store.js — thread store, Postgres-backed in production.
 
-   Deliberately boring: one JSON file, whole-file atomic writes, an in-memory
-   copy as the source of truth. This holds at hackathon scale (hundreds of
-   threads) and has zero operational surface. Swap for SQLite/Postgres if it
-   ever needs to survive a fleet.
+   Deliberately boring: an in-memory copy is the source of truth, persisted as
+   one JSON blob. Two backends, chosen by DATABASE_URL at import: a single
+   jsonb row when it is set, a whole-file atomic write when it is not (local
+   development). The file branch is NOT viable in production — Render's free
+   filesystem is ephemeral, so it lost every conversation on each restart, and
+   that is why counsellor replies appeared to vanish.
+
+   Read init() and flush() together before changing either: a failed load must
+   never become a write, or one bad boot deletes everyone's conversations.
 
    WHAT IS STORED: codename, a scrypt hash of the passphrase, the recipient
    school address, and message bodies.
@@ -87,6 +92,18 @@ let lastWriteErr = "";
     writes are disabled. Callers must refuse work they cannot persist rather
     than accept it silently — see the refusal in server.js's /send. */
 export function degraded() { return DURABLE && !loaded; }
+
+/** Await the in-flight persist and report whether it succeeded.
+    degraded() only catches a failed boot read; writes can also start failing
+    AFTER a good one (the database deleted mid-life, connections exhausted).
+    That leaves loaded true, so /send would accept the message, email the
+    counsellor, and hand over a passphrase — while nothing was stored. Callers
+    await this before claiming a send succeeded. Returns null when no write
+    has been attempted, which is not a failure. */
+export async function settled() {
+  await writing;   // null while idle; awaiting null is a no-op
+  return lastWriteOk;
+}
 /* Memoise the PROMISE, not the pool. Awaiting `import("pg")` yields, so two
    callers racing the first call would each construct a Pool and the loser's
    connections would leak for the life of the process. On failure the memo is

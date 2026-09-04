@@ -11,7 +11,7 @@
 import { readdir, readFile, rename, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { addMessage, getThread, seenUid, markUid } from "./store.js";
+import { addMessage, getThread, seenUid, markUid, degraded } from "./store.js";
 
 const MODE = (process.env.BIT_RELAY_MODE || "dry").toLowerCase();
 const DROP = process.env.BIT_INBOX_DROP || join(process.cwd(), "inbox-drop");
@@ -243,6 +243,20 @@ export function extractPlain(source) {
 let timer = null;
 
 export async function pollOnce() {
+  /* Never collect while storage is degraded, and guard it HERE so both
+     transports are covered — pollImap marks mail \Seen and pollDrop renames
+     the file to .done, each unconditionally, and the fetch/scan afterwards
+     only looks at unseen/undone items.
+
+     Filing a reply needs getThread(), which finds nothing in an empty store,
+     so record() refuses it — and the message was consumed anyway. That is a
+     counsellor's answer destroyed permanently: the student waits forever
+     while our own copy blames their school's spam filter. Skipping costs one
+     poll cycle; the reply stays exactly where it is until storage is back. */
+  if (degraded()) {
+    console.error("[inbox] storage degraded — skipping poll so replies stay collectable");
+    return 0;
+  }
   try {
     return MODE === "live" ? await pollImap() : await pollDrop();
   } catch (err) {
