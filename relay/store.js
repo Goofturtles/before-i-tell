@@ -365,6 +365,24 @@ export function blockRecipient(email) {
   return true;
 }
 
+/** Undo a block that could not be persisted.
+    Every other failed write in this store rolls back (dropThread,
+    dropMessage); this one did not, and that asymmetry was a live bug. A block
+    held only in RAM makes the FIRST attempt say "not saved — try again", then
+    the retry find the address already in the list, skip the persistence check,
+    and report success. The opt-out then dies at the next spin-down and we
+    resume emailing an adult who asked us to stop, having told them it was
+    handled. Rolling back keeps the retry honest: it writes again, and is
+    checked again. */
+export function unblockRecipient(email) {
+  const e = String(email || "").toLowerCase();
+  const i = db.blocked.indexOf(e);
+  if (i === -1) return false;
+  db.blocked.splice(i, 1);
+  flush();
+  return true;
+}
+
 /* ---------------- IMAP dedupe ---------------- */
 
 export function seenUid(mailbox, uid) {

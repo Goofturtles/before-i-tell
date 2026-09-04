@@ -338,6 +338,37 @@ const { headerBlock } = await import("../inbox.js");
   ok("rollback removes the undelivered message", !left.some((m) => m.body === "this one never left"));
   ok("rollback does NOT eat the reply that raced it", left.some((m) => m.body === "meanwhile, here is my reply"));
   ok("rollback is idempotent", store.dropMessage(t.json.tag, ghost) === false);
+  /* The OTHER direction of the adultReplied recompute. The assertion in
+     writefail only proves it goes false when the sole adult message is rolled
+     back; an unconditional `adultReplied = false` would pass that and every
+     other suite, while erasing "They replied" from a thread that visibly
+     still contains the reply. This thread has one. */
+  ok("rollback keeps adultReplied true when a real reply remains",
+     store.getThread(t.json.tag).adultReplied === true);
+}
+
+/* A counsellor who bottom-posts, replies inline, or uses Outlook's
+   "-----Original Message-----" puts a quote marker on line 1. stripQuoted cuts
+   at the FIRST marker, so all three used to yield an empty body, get filed as
+   spam, and be CONSUMED — a real answer to a child destroyed silently, with
+   healthy storage and no log. */
+{
+  const styles = {
+    "bottom-posted": "On Tue, Sep 2 someone wrote:\n> my message\n\nCome by Thursday.",
+    "inline reply": "> you said this\nYes, come Thursday.",
+    "outlook": "-----Original Message-----\nFrom: a@b.ca\n\nCome by Thursday.",
+  };
+  for (const [style, body] of Object.entries(styles)) {
+    const t = await post("/send", { to: "c@wrdsb.ca", message: "please read this" });
+    writeFileSync(join(TMP, "drop", `q-${style.replace(/\W/g, "")}.txt`),
+      `To: relay+bit${t.json.tag}@gmail.com\nFrom: c@wrdsb.ca\nSubject: Re:\n\n${body}\n`);
+    await pollOnce();
+    const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+    const reply = read.json.messages?.find((m) => m.from === "adult");
+    ok(`a ${style} reply is kept, not destroyed`,
+       Boolean(reply) && /Thursday/.test(reply.body || ""),
+       JSON.stringify(read.json.messages?.map((m) => [m.from, m.body?.slice(0, 30)])));
+  }
 }
 
 // isAutomated must inspect headers only — a quoted line in a reply body was

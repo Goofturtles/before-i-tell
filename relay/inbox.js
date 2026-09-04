@@ -92,14 +92,35 @@ export function isAutomated(headers) {
                      transports only ever look at unseen/undone items. */
 async function record(tag, body, fromHeader, rawHeaders) {
   const thread = getThread(tag);
-  if (!thread) return "rejected";
+  if (!thread) {
+    // distinct from spam: a well-formed tag with no thread means retention
+    // deleted it (90 days) — worth seeing in the log, since the counsellor's
+    // reply is about to be consumed and they will never know
+    console.warn(`[inbox] reply for an unknown or expired thread ${tag.slice(0, 8)} — nothing to file it against`);
+    return "rejected";
+  }
   if (isAutomated(rawHeaders)) return "rejected";
   const sender = addressOf(fromHeader);
   if (!sender || sender !== String(thread.to).toLowerCase()) {
     console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender is not this thread's recipient`);
     return "rejected";
   }
-  const clean = stripQuoted(body);
+  let clean = stripQuoted(body);
+  /* stripQuoted cuts at the FIRST quote marker, which assumes the counsellor
+     top-posted. Three common styles put a marker on line 1 — bottom-posting,
+     inline replying, and Outlook's "-----Original Message-----" — and each
+     leaves nothing behind. Treated as "rejected", a real answer to a child was
+     then consumed and destroyed, with no outage and no log, while the student
+     waited under a note blaming their school's spam filter.
+
+     If the body had text and our parse emptied it, the parse is wrong, not the
+     reply. Fall back to the raw body: showing a little quoted history is a
+     cosmetic flaw, losing the message is not. Same principle as the send path
+     — duplicate beats silent loss. */
+  if (!clean && String(body || "").trim()) {
+    clean = String(body).replace(/\r\n/g, "\n").trim().slice(0, MAX_REPLY);
+    console.warn(`[inbox] quote-stripping emptied a non-empty reply on ${tag.slice(0, 8)} — keeping the raw body`);
+  }
   if (!clean) return "rejected";
   const msg = addMessage(tag, "adult", clean);
   /* degraded() is decided once at boot and never flips, so it cannot see a

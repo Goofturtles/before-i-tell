@@ -197,6 +197,14 @@ assuming only the first is what let the poller destroy replies:
    `settled()` before promising anything, and `record()` returns
    `"unpersisted"` so the reply is left in the mailbox instead of consumed.
 
+   **Every one of those paths must also roll back what it put in memory.**
+   `/send` drops the thread or message; `POST /block` calls
+   `unblockRecipient`; `record()` calls `dropMessage`. Skipping the rollback
+   does not merely leave stale state — it makes the *retry* lie, because the
+   second attempt finds the work already done in RAM, skips its own
+   persistence check, and reports success for something that dies at the next
+   restart. That was a live bug in the block path.
+
 In both cases nothing was sent, nothing was lost, and no passphrase was issued.
 
 ---

@@ -43,29 +43,46 @@ const HOUR = 3600000;
 
 const MAX_RATE_KEYS = 50000; // bound the map even if keys get rotated at us
 
+/* Returns the bucket RECORD when the charge lands, null when the limit is hit.
+   Truthy/falsy either way, so `if (!bump(...))` still reads as before — but
+   handing back the record lets refund() decrement the exact object it charged
+   instead of looking the key up again later, by which time the window may have
+   rolled over or eviction may have re-inserted a different bucket. */
 function bump(key, limit, windowMs) {
   const now = Date.now();
   const rec = hits.get(key);
   if (!rec || now > rec.reset) {
     // oldest-inserted eviction: a header-rotating abuser fills buckets, not memory
     if (!rec && hits.size >= MAX_RATE_KEYS) hits.delete(hits.keys().next().value);
-    hits.set(key, { n: 1, reset: now + windowMs });
-    return true;
+    const fresh = { n: 1, reset: now + windowMs };
+    hits.set(key, fresh);
+    return fresh;
   }
-  if (rec.n >= limit) return false;
+  if (rec.n >= limit) return null;
   rec.n++;
-  return true;
+  return rec;
 }
 
-/** Give a charge back for work that provably did not happen.
-    Charging happens before we try to store or send, so a storage or delivery
-    failure would otherwise spend the student's budget on nothing: six failed
-    attempts exhaust `to:<address>` (6/day) and they are then told "That
-    address has already received several messages today" — it received none.
-    Only called on paths that roll the message back AND sent no email, so this
-    cannot hand an abuser free retries. */
-function refund(key) {
-  const rec = hits.get(key);
+/** Give a charge back for a message that was rolled back.
+    Charging happens before we try to store or send, so without this a failed
+    attempt spends the student's budget on nothing: six failures exhaust
+    `to:<address>` (6/day) and they are then told "That address has already
+    received several messages today" — it received none.
+
+    What this does NOT claim: that no email was sent. The storage path is
+    certain (the refusal happens before we hand anything to the transport), but
+    on the delivery path a Brevo timeout can mean the send committed and only
+    the acknowledgement was lost — see the note in mailer.js. So a refund buys
+    another *attempt*, never another guaranteed *delivery*, and under a flaky
+    transport the per-recipient flood caps loosen exactly when sends are
+    unreliable. That is the deliberate trade: a student who cannot tell whether
+    their disclosure went anywhere must not also be locked out for a day.
+
+    Epoch-safe by construction: the record is captured at charge time, so a
+    window that rolls over (or a MAX_RATE_KEYS eviction that re-inserts the
+    key) leaves us decrementing the object we actually charged, which is no
+    longer the live bucket, rather than corrupting a stranger's count. */
+function refund(rec) {
   if (rec && rec.n > 0) rec.n--;
 }
 
@@ -235,7 +252,8 @@ async function handleSend(req, res, body) {
   charges.push(["send:" + ipKey(req), 120, HOUR], ["global:send", 400, 24 * HOUR]);
 
   // every refusal point has passed: charge everything, then create
-  for (const [k, lim, win] of charges) bump(k, lim, win);
+  // keep the records: a refund below decrements what it charged, not a lookup
+  const charged = charges.map(([k, lim, win]) => bump(k, lim, win));
 
   if (first) {
     const created = await store.newThread(newTo);
@@ -264,7 +282,7 @@ async function handleSend(req, res, body) {
     if (first) store.dropThread(thread.tag);
     else store.dropMessage(thread.tag, stored);
     // nothing stored and nothing emailed: give the budgets back
-    for (const [k] of charges) refund(k);
+    for (const rec of charged) refund(rec);
     return json(res, 503, { ok: false, reason: "storage" });
   }
 
@@ -280,7 +298,7 @@ async function handleSend(req, res, body) {
     else store.dropMessage(thread.tag, stored);
     // undelivered and rolled back: the budgets must not record a message that
     // never reached anyone, or the next honest attempt is refused as "rate"
-    for (const [k] of charges) refund(k);
+    for (const rec of charged) refund(rec);
     return json(res, 502, { ok: false, reason: "delivery" });
   }
 
@@ -401,15 +419,19 @@ async function handleBlockAct(req, res) {
   const thread = store.getThread(tag);
   if (!thread) return blockPage(res, "Nothing to block", "That link has expired or the conversation is already closed.");
   /* Gate on the return value: blockRecipient answers false when the address is
-     ALREADY blocked, and schedules no write. settled() would then report some
-     earlier, unrelated write — telling a counsellor who is genuinely opted out
-     that we couldn't save it. Only check persistence when we actually wrote. */
+     ALREADY blocked and schedules no write, so checking settled() then would
+     report some earlier, unrelated write and tell a genuinely opted-out
+     counsellor we had failed. But an unpersisted block must NOT be left in
+     memory either — the retry we just asked for would find it already listed,
+     skip this check, and report success for a block that dies at the next
+     restart. So roll it back, exactly as the send paths do. */
   const newlyBlocked = store.blockRecipient(thread.to);
   /* An opt-out that lives only in RAM is not an opt-out: the next restart
      resumes messaging an adult who explicitly asked us to stop. Never print
      "Nobody has to do anything else" until the block is actually stored. */
   if (newlyBlocked && (await store.settled()) === false) {
     console.error("[block] could not persist the opt-out for", thread.to);
+    store.unblockRecipient(thread.to);
     return blockPage(res, "Not saved — please try again",
       `We could not record the opt-out for <b>${escHtml(thread.to)}</b> just now, so we won't pretend it's done. No messages are being sent while our storage is down. Please use this link again shortly.`);
   }
