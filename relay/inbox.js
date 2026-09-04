@@ -547,8 +547,16 @@ export function extractPlain(source) {
 
   let parts = s.split(
     new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"));
-  // if the declared split found no text part at all, try the loose one before
-  // giving up — a malformed boundary should not cost us the reply
+  /* INERT, kept deliberately — and it does NOT do what it looks like.
+     It was written as "if the declared split found no text part, try the loose
+     one before giving up", but the trigger is strictly weaker than the loop's
+     accept test below, and removing a whole `\n--…\n` delimiter line cannot
+     create a line start that did not already exist. So whenever this fires,
+     the re-split cannot produce an acceptable part either: the result is ""
+     with or without it. Verified by deleting it — 201/201 either way.
+     Left in place because deleting it is a behaviour change with nothing to
+     gain, but do not trust it to rescue a malformed-boundary message; it
+     won't. Anything that shape returns "" and is counted as emptyBody. */
   if (!parts.some((p) => /^content-type:\s*text\//im.test(p))) {
     parts = s.split(/\n--[^\n]+\n/);
   }

@@ -239,3 +239,36 @@ In both cases nothing was sent, nothing was lost, and no passphrase was issued.
 - Deliverability is Gmail's. A school spam filter can still quarantine a message
   from an unfamiliar sender; that is a real limitation of any small relay.
 - Once an email is in someone's inbox, it is theirs. The site says so plainly.
+
+### Known limitations in inbound parsing
+
+These are understood and deliberately not fixed. They are recorded because
+`inbox.js` took thirteen review rounds and **four separate blockers were
+introduced by the previous round's fix** — the marginal risk of another edit is
+real, so anything not actively losing a reply is documented rather than
+changed. Watch `/health` → `rejectedReplies` for the first two weeks; that
+counter is where all of these would first show up.
+
+- **Charset is ignored.** `decodeBody` assumes UTF-8, so an ISO-8859-1 or
+  windows-1252 reply loses accented characters (`j'espère` → `j'esp<?>re`).
+  Relevant: several French-language boards are in the allowlist.
+- **`decodeBody`'s Content-Transfer-Encoding match is unanchored**, the one
+  header regex the anchoring fix did not reach. No header real M365 or Gmail
+  emits trips it. **If mojibake is ever reported, start here.**
+- **A multipart part with no Content-Type is skipped**, though the single-part
+  path honours the RFC 2045 `text/plain` default. Real mail clients always
+  emit per-part Content-Type.
+- **A body part sent as `Content-Disposition: inline; filename=…` would be
+  skipped** as an attachment. Gmail, OWA, Outlook desktop and Apple Mail don't
+  do this.
+- **Untagged mail is never marked `\Seen`**, so anything in the relay mailbox
+  that isn't a reply is re-downloaded on every poll, forever. Nothing is lost;
+  polls slow down. Mitigate by keeping the relay inbox clean, not in code.
+- **Sender identity rests on the `From:` header.** A school domain publishing
+  no DMARC policy can be spoofed by someone who also holds the thread tag. See
+  the sender-policy section above — a strong filter, not proof of identity.
+- **Every inbound test uses hand-built fixtures.** That is exactly what let a
+  live regression through: two-line header blocks hid an unanchored regex that
+  destroyed plain-text replies from Microsoft 365 schools. There is now one
+  realistic fixture, but **no synthetic test substitutes for one real reply
+  from a real school mailbox — send one before students rely on this.**
