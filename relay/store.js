@@ -50,20 +50,32 @@ let dirty = false;
    exactly as it was, so nothing about running this locally changes. */
 const DB_URL = process.env.DATABASE_URL || "";
 export const DURABLE = Boolean(DB_URL);
-let pool = null;
+/* Memoise the PROMISE, not the pool. Awaiting `import("pg")` yields, so two
+   callers racing the first call would each construct a Pool and the loser's
+   connections would leak for the life of the process. On failure the memo is
+   cleared so a transient outage doesn't permanently poison every later call. */
+let poolPromise = null;
 
-async function db_pool() {
-  if (pool) return pool;
-  const { default: pg } = await import("pg");
-  pool = new pg.Pool({
-    connectionString: DB_URL,
-    // Render's INTERNAL hostname has no dots and speaks plaintext on a private
-    // network; the external one requires TLS. Detect rather than guess wrong.
-    ssl: DB_URL.includes("render.com") ? { rejectUnauthorized: false } : false,
-    max: 3,
-  });
-  await pool.query("CREATE TABLE IF NOT EXISTS bit_store (id int PRIMARY KEY, data jsonb NOT NULL)");
-  return pool;
+function db_pool() {
+  if (!poolPromise) {
+    poolPromise = (async () => {
+      const { default: pg } = await import("pg");
+      const p = new pg.Pool({
+        connectionString: DB_URL,
+        // Render's INTERNAL hostname has no dots and speaks plaintext on a
+        // private network; the external one requires TLS. Detect, don't guess.
+        ssl: DB_URL.includes("render.com") ? { rejectUnauthorized: false } : false,
+        max: 3,
+      });
+      // a pool is an EventEmitter: an idle-client error with no listener is a
+      // fatal unhandled 'error' event — the exact class of bug that was
+      // crash-looping this relay every five minutes
+      p.on("error", (err) => console.error("[store] idle pg client error:", err?.message ?? err));
+      await p.query("CREATE TABLE IF NOT EXISTS bit_store (id int PRIMARY KEY, data jsonb NOT NULL)");
+      return p;
+    })().catch((err) => { poolPromise = null; throw err; });
+  }
+  return poolPromise;
 }
 
 export async function init() {
