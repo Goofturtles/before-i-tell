@@ -31,7 +31,7 @@ const REFUSALS = {
      happens a student sees this message and reasonably concludes they typed
      their own passphrase wrong. Blaming them for our data loss is the kind of
      small dishonesty this product exists not to commit. */
-  auth: "That codename and passphrase don't open a conversation. Two things it could be: a typo (the passphrase is case-sensitive), or the conversation is genuinely gone — this runs on a free server that loses stored conversations when it restarts. If you're sure you typed it right, that's what happened, and it's our fault, not yours. Your counsellor still has your original email in their inbox; you can start a new conversation below, or reply to them another way.",
+  auth: "That codename and passphrase don't open a conversation. Two things it could be: a typo (the passphrase is case-sensitive), or the conversation is genuinely gone — this runs on a free server that loses saved conversations when it restarts. If you're sure you typed it right, that's what happened, and it's our fault, not yours.",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
@@ -445,7 +445,11 @@ function renderThread(thread, pass) {
       openThread(thread.tag, pass, () => {
         replyBtn.disabled = false;
         replyBtn.textContent = "Send reply";
-        status.append(fading(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment.")));
+        /* NOT fading: this is a record of what happened, not a passing
+           condition. The reply text is still in the box and the button is
+           enabled again, so if this note disappears the student concludes it
+           never sent and sends a real disclosure to their counsellor twice. */
+        status.append(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment."));
       });
       return;
     }

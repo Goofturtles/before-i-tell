@@ -92,7 +92,13 @@ const UI_DIR = new URL("../js/", import.meta.url);
 const DATA_OR_CONTENT = new Set(["region.js", "corpus.js"]);
 // the product's own codename feature is legitimately anonymous — that is a
 // claim about US, not about a crisis service
-const PRODUCT_CLAIM = /anonymous messages to anyone|codename/i;
+/* Deliberately ONE exact phrase, not a loose alternation. An earlier version
+   also allowed the bare word "codename", which appears on dozens of lines in
+   codename.js — so a real violation there ("Kids Help Phone is anonymous —
+   your codename stays yours") would have been exempted by the word next to
+   it. Both legitimate uses say this exact thing, about OUR product rather
+   than a crisis line. */
+const PRODUCT_CLAIM = /anonymous messages to anyone/i;
 
 for (const f of readdirSync(UI_DIR).filter((n) => n.endsWith(".js"))) {
   if (DATA_OR_CONTENT.has(f)) continue;
