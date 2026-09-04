@@ -53,10 +53,15 @@ for (const id of REGION_ORDER) {
 // way. This drifted three times when the word lived in prose.
 for (const id of REGION_ORDER) {
   for (const l of REGIONS[id].lines) {
-    if (l.anon) ok(/anonymous/i.test(l.note || ""), `${id}/${l.name} anon:true is reflected in its note`);
+    // BICONDITIONAL: flag and note must agree in BOTH directions, or a note
+    // saying "Anonymous" without the flag would sail through.
+    const noteSaysAnon = /anonymous/i.test(l.note || "");
+    ok(Boolean(l.anon) === noteSaysAnon,
+       `${id}/${l.name}: anon flag (${Boolean(l.anon)}) matches its note (${noteSaysAnon})`);
+    // the single criterion is "the operator says so" — so a flag needs a source
+    if (l.anon) ok(l.anonSrc && l.anonSrc.length, `${id}/${l.name} records anonSrc`);
   }
 }
-ok(REGIONS.us.lines.every((l) => !l.anon), "988 is NOT flagged anonymous (confidential, but can dispatch)");
 ok(REGIONS.other.lines.length === 0, "'other' has no lines, so nothing can be called anonymous there");
 
 // exactly one region may claim verified law — the corpus is Ontario's
@@ -72,6 +77,29 @@ ok(regionById("").name === REGIONS[DEFAULT_REGION].name, "empty id falls back to
 // every option in the picker resolves
 for (const id of REGION_ORDER) ok(REGIONS[id], `picker option ${id} resolves`);
 
+
+
+/* ---- source scan: the word may not appear ungated in UI code ----
+   The data assertions above cannot see prose, and prose is exactly where this
+   claim drifted three times (ask.js, codename.js, then safety.js). This reads
+   the real files and fails if "anonym*" appears in a UI module without a
+   primaryIsAnon() gate in the same file. region.js is the data home; corpus.js
+   is Ontario-gated content shown behind jurisdictionNote(). */
+import { readFileSync, readdirSync } from "node:fs";
+const UI_DIR = new URL("../js/", import.meta.url);
+const DATA_OR_CONTENT = new Set(["region.js", "corpus.js"]);
+for (const f of readdirSync(UI_DIR).filter((n) => n.endsWith(".js"))) {
+  if (DATA_OR_CONTENT.has(f)) continue;
+  const src = readFileSync(new URL(f, UI_DIR), "utf8");
+  // strip comments so explanatory prose about the rule doesn't trip it
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  if (!/anonym/i.test(code)) continue;
+  // codename.js legitimately describes the PRODUCT's own codename feature
+  const onlyProductClaim = f === "codename.js"
+    && code.match(/anonym/gi).length === (code.match(/anonymous messages to anyone/gi) || []).length;
+  ok(onlyProductClaim || /primaryIsAnon\(\)/.test(code),
+     `${f} uses "anonymous" only behind primaryIsAnon() (or about the product itself)`);
+}
 
 /* ---- timezone routing ---- */
 /* guessRegion must never hand someone a number that doesn't work where they

@@ -13,7 +13,7 @@
 import { store } from "./store.js";
 import { $, el, trapFocus } from "./ui.js";
 import { router } from "./router.js";
-import { currentRegion, crisisRoutes, bannerLines } from "./crisis.js";
+import { currentRegion, crisisRoutes, bannerLines, primaryIsAnon } from "./crisis.js";
 
 /* ---------------- pattern taxonomy ----------------
    ['’]? — smart-quote tolerant: iOS/Word type U+2019, which would otherwise
@@ -206,6 +206,13 @@ export const safety = {
        so it rendered "The line above", which is the 112 emergency row. It
        promised anonymity for calling emergency services. */
     const lawKnown = currentRegion().lawVerified;
+    /* Gate the word on primaryIsAnon(), NOT on lawVerified. These two branches
+       hard-coded "Kids Help Phone is anonymous", which is true today only
+       because Ontario happens to be the one lawVerified region and its first
+       line happens to be KHP. Two unrelated facts holding hands is exactly how
+       this claim drifted three times; read it from the data instead. */
+    const lineName = currentRegion().lines[0]?.name || "The line above";
+    const anonWord = primaryIsAnon() ? "it's anonymous, so " : "";
     const honestNote = !lawKnown
       ? [
           "Honest note, because you deserve the truth: what a school adult would have to pass on depends on where you live, and we only have that verified for Ontario, Canada — so we're not going to guess at yours. ",
@@ -214,11 +221,11 @@ export const safety = {
       : fams.has("abuse")
       ? [
           "Honest note, because you deserve the truth: if you tell a school adult that someone is hurting you and you're under 16, the law requires them to contact a children's aid society — that exists to protect you, and it can't be undone once said. At 16–17, reporting is allowed but not automatic. ",
-          "Kids Help Phone is different: it's anonymous, so you choose what to share and when. Knowing this before you decide is the whole point of this site.",
+          `${lineName} is different: ${anonWord}you choose what to share and when. Knowing this before you decide is the whole point of this site.`,
         ]
       : [
           "Honest note, because you deserve the truth: telling a school counsellor you're struggling like this does not trigger children's aid — that law is about abuse and neglect. What a counsellor will do is take it seriously and work to keep you safe, which can include involving people who care about you. ",
-          "Kids Help Phone is anonymous: you choose what to share and when. You don't have to have the words figured out first.",
+          `${lineName}: ${anonWord}you choose what to share and when. You don't have to have the words figured out first.`,
         ];
 
     const overlay = el("div", { class: "takeover", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "takeover-title", "aria-describedby": "takeover-desc", tabindex: "-1" },

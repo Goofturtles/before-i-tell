@@ -11,7 +11,7 @@ import { link } from "./link.js";
 import { scaffold, OPENERS, CLOSINGS, WHO_OPTIONS, NEED_OPTIONS } from "./scaffold.js";
 import { codename } from "./codename.js";
 import { RELAY_ENABLED } from "./config.js";
-import { currentRegion } from "./crisis.js";
+import { currentRegion, currentRegionId } from "./crisis.js";
 
 const view = $("#view");
 
@@ -536,7 +536,15 @@ store.onWriteError = () => {
 /* The region picker re-renders in place rather than reloading (a reload would
    destroy an unsent Level 2 message). Screens whose copy depends on the
    region — Ask's jurisdiction note — must therefore redraw themselves. */
+let lastRenderedRegion = null;
 addEventListener("bit:region", () => {
+  /* No-op when the region hasn't actually changed since we last redrew. The
+     dispatch is debounced, so a student could change region and then type an
+     answer within the window — without this the timer fires and render.ask()
+     wipes the answer they're reading and drops focus to <body>. */
+  const id = currentRegionId();
+  if (id === lastRenderedRegion) return;
+  lastRenderedRegion = id;
   // Call the screen's render directly instead of router.go(): the router
   // moves focus to the <h1> after every navigation, which would yank the
   // user from the country dropdown they just used to the top of the page

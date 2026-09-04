@@ -10,11 +10,16 @@
    invented number: a wrong crisis number is worse than no number, because it
    fails at the exact moment someone reaches for it.
 
-   Same rule for the word "anonymous": it is a claim, not a description. Only
-   a line carrying `anon: true` may be called anonymous in copy — Kids Help
-   Phone says so on its own site. Services like 988 are confidential but can
-   initiate an emergency response, so calling them "anonymous" would be a
-   promise we cannot keep. The flag exists so the claim lives in data next to
+   Same rule for the word "anonymous", with ONE test, written here so it can't
+   drift: a line may carry `anon: true` only if the operator describes the
+   service that way in its own words, and `anonSrc` records where. We are
+   repeating a citable description, NOT certifying a legal property — every
+   crisis line, including the flagged ones, can act on imminent risk. That is
+   why the earlier reasoning was wrong: it flagged Kids Help Phone "because
+   its site says so" but excluded 988 "because it can dispatch", which are two
+   different tests, and 988's own site says confidential rather than
+   anonymous. Under the single test it stays unflagged, and so do Samaritans,
+   Lifeline, 1737 and SADAG. The flag lives in data so the claim sits beside
    its source, instead of in prose where it drifted three times.
 
    The reporting-law corpus stays Ontario-only, and `lawVerified` is the flag
@@ -35,8 +40,8 @@ export const REGIONS = {
     lawVerified: true,             // the corpus in corpus.js is Ontario law
     emergency: "911",
     lines: [
-      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true },
-      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true },
+      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true, anonSrc: "kidshelpphone.ca — \"anonymous\"" },
+      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true, anonSrc: "kidshelpphone.ca — same service, described as anonymous" },
       { name: "9-8-8 · call or text", note: "Suicide Crisis Helpline, 24/7.", tel: "988", display: "9-8-8" },
     ],
     src: "kidshelpphone.ca, 988.ca",
@@ -47,8 +52,8 @@ export const REGIONS = {
     lawVerified: false,
     emergency: "911",
     lines: [
-      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true },
-      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true },
+      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true, anonSrc: "kidshelpphone.ca — \"anonymous\"" },
+      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true, anonSrc: "kidshelpphone.ca — same service, described as anonymous" },
       { name: "9-8-8 · call or text", note: "Suicide Crisis Helpline, 24/7.", tel: "988", display: "9-8-8" },
     ],
     src: "kidshelpphone.ca, 988.ca",
