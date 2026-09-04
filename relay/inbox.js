@@ -18,6 +18,11 @@ const DROP = process.env.BIT_INBOX_DROP || join(process.cwd(), "inbox-drop");
 const POLL_MS = Number(process.env.BIT_POLL_SECONDS || 20) * 1000;
 const MAX_REPLY = 4000;
 
+/* Replies we refused and consumed. Each one is a counsellor who believes they
+   answered a child who will never see it, so these must be visible somewhere
+   an operator actually looks — /health, not just the log. */
+export const rejected = { senderMismatch: 0, expiredThread: 0, emptyBody: 0 };
+
 /** pull the thread tag out of any address-bearing header */
 export function tagFrom(headerValue) {
   const m = /\+bit([0-9a-f]{8,64})@/i.exec(String(headerValue || ""));
@@ -46,6 +51,13 @@ export function stripQuoted(raw) {
     out.push(line);
   }
   return out.join("\n").trim().slice(0, MAX_REPLY);
+}
+
+/** RFC 5322 unfolding: a header may continue on following lines when they
+    start with whitespace. Join them back before any per-line header regex,
+    or a wrapped From:/To: reads as a header with its value cut off. */
+export function unfold(headerText) {
+  return String(headerText || "").replace(/\r\n/g, "\n").replace(/\n[ \t]+/g, " ");
 }
 
 /** bare address out of "Name <a@b.c>" or "a@b.c" */
@@ -96,13 +108,25 @@ async function record(tag, body, fromHeader, rawHeaders) {
     // distinct from spam: a well-formed tag with no thread means retention
     // deleted it (90 days) — worth seeing in the log, since the counsellor's
     // reply is about to be consumed and they will never know
+    rejected.expiredThread++;
     console.warn(`[inbox] reply for an unknown or expired thread ${tag.slice(0, 8)} — nothing to file it against`);
     return "rejected";
   }
   if (isAutomated(rawHeaders)) return "rejected";
   const sender = addressOf(fromHeader);
   if (!sender || sender !== String(thread.to).toLowerCase()) {
-    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender is not this thread's recipient`);
+    /* Deliberately still an EXACT match. Accepting any same-domain sender
+       would let anyone at the school who has the tag write into a child's
+       conversation, and the tag travels in Reply-To of a forwardable email —
+       that is a security decision for the operator, not a bug fix.
+
+       But the cost is real and was invisible: a counsellor answering from an
+       alias, or from their own account on a shared guidance@ mailbox, is
+       refused and the message is consumed. It is not destroyed — it stays in
+       the relay's mailbox, marked read — but nobody knows to look. Count it
+       so /health shows the operator this is happening. */
+    rejected.senderMismatch++;
+    console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender ${sender || "(unparseable)"} is not this thread's recipient — it stays in the mailbox, marked read`);
     return "rejected";
   }
   let clean = stripQuoted(body);
@@ -118,10 +142,18 @@ async function record(tag, body, fromHeader, rawHeaders) {
      cosmetic flaw, losing the message is not. Same principle as the send path
      — duplicate beats silent loss. */
   if (!clean && String(body || "").trim()) {
-    clean = String(body).replace(/\r\n/g, "\n").trim().slice(0, MAX_REPLY);
+    /* Keep the TAIL, not the head. This fallback fires precisely when a quote
+       marker sat on line 1, which means the counsellor wrote BELOW the quote —
+       so the head is our boilerplate and the student's own message read back
+       to them. A student using the full 4000-char composer makes the raw body
+       ~6000 chars, and slicing the first 4000 delivered their own words with
+       the counsellor's sentence cut off the end, under a heading saying
+       "They replied". Verified: head-slicing loses it, tail-slicing keeps it. */
+    const raw = String(body).replace(/\r\n/g, "\n").trim();
+    clean = raw.length > MAX_REPLY ? raw.slice(-MAX_REPLY) : raw;
     console.warn(`[inbox] quote-stripping emptied a non-empty reply on ${tag.slice(0, 8)} — keeping the raw body`);
   }
-  if (!clean) return "rejected";
+  if (!clean) { rejected.emptyBody++; return "rejected"; }
   const msg = addMessage(tag, "adult", clean);
   /* degraded() is decided once at boot and never flips, so it cannot see a
      database that dies mid-life — the expected end state on a free plan.
@@ -150,8 +182,11 @@ async function pollDrop() {
       const split = raw.indexOf("\n\n");
       const head = split === -1 ? raw : raw.slice(0, split);
       const body = split === -1 ? "" : raw.slice(split + 2);
-      const to = /^To:\s*(.+)$/im.exec(head)?.[1] || "";
-      const from = /^From:\s*(.+)$/im.exec(head)?.[1] || "";
+      // unfold here too — the IMAP path is not the only header parser, and
+      // fixing only that one is how the last four rounds of this went
+      const unfolded = unfold(head);
+      const to = /^To:\s*(.+)$/im.exec(unfolded)?.[1] || "";
+      const from = /^From:\s*(.+)$/im.exec(unfolded)?.[1] || "";
       const tag = tagFrom(to);
       const outcome = tag ? await record(tag, body, from, head) : "rejected";
       // leave the file untouched so a later poll can still collect the reply
@@ -203,14 +238,27 @@ async function pollImap() {
         const headerText = msg.headers ? msg.headers.toString() : "";
         const src = msg.source ? msg.source.toString() : "";
         const tag =
-          tagFrom(/^(?:Delivered-To|X-Original-To|To|X-BIT-Reply):\s*(.+)$/im.exec(headerText)?.[1]) ||
+          // unfolded too: a wrapped To: would hide the plus-address the tag
+          // lives in, and an untagged message is skipped entirely
+          tagFrom(/^(?:Delivered-To|X-Original-To|To|X-BIT-Reply):\s*(.+)$/im.exec(unfold(headerText))?.[1]) ||
           tagFrom((msg.envelope?.to || []).map((a) => a.address).join(",")) ||
           tagFrom(headerText);
         if (!tag) continue;
         // crude but dependency-free body extraction: first text/plain part
         const body = extractPlain(src);
-        const from = /^From:\s*(.+)$/im.exec(headerText)?.[1]
-          || (msg.envelope?.from || []).map((a) => a.address).join(",");
+        /* Unfold before matching, and fall back on the ADDRESS rather than on
+           the match. RFC 5322 lets a long header continue on the next line
+           indented by whitespace, which real mail does constantly:
+             From: "Smith, Jane - Student Success & Guidance"
+              <jane.smith@pdsb.net>
+           A single-line regex captured only the display name, addressOf()
+           returned "", the sender check failed, and the reply was consumed as
+           an impostor. The old `||` could not save it because the regex DID
+           match — it just matched something with no address in it. */
+        const fromHeader = /^From:\s*(.+)$/im.exec(unfold(headerText))?.[1] || "";
+        const from = addressOf(fromHeader)
+          ? fromHeader
+          : ((msg.envelope?.from || []).map((a) => a.address).join(",") || fromHeader);
         // full src, not a slice: Gmail's Received/DKIM/ARC block can exceed 4KB,
         // and a truncated header set would let a bounce through as "Them".
         // headerBlock() bounds it correctly either way.

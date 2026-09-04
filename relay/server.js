@@ -26,7 +26,7 @@ import * as store from "./store.js";
 import { checkRecipient } from "./schools.js";
 import { checkTier3 } from "./safety.js";
 import { sendToCounsellor, modeInfo } from "./mailer.js";
-import { startPolling } from "./inbox.js";
+import { startPolling, rejected as rejectedReplies } from "./inbox.js";
 
 const PORT = Number(process.env.PORT || 8787);
 const ALLOW_ORIGIN = process.env.BIT_ALLOW_ORIGIN || "*";
@@ -452,7 +452,15 @@ const server = createServer(async (req, res) => {
       // xff: observed forwarded-chain length (no addresses) — lets the
       // operator verify BIT_TRUSTED_HOPS against reality with one curl
       const xff = String(req.headers["x-forwarded-for"] || "").split(",").filter((s) => s.trim()).length;
-      return json(res, 200, { ok: true, ...modeInfo(), ...store.stats(), xff, trustedHops: TRUSTED_HOPS });
+      /* rejectedReplies: counsellor answers we refused and consumed. Any
+         non-zero value means someone believes they replied to a child who
+         will never see it — the mail is still in the relay mailbox, marked
+         read. Surfaced here because nobody reads the logs. */
+      return json(res, 200, {
+        ok: true, ...modeInfo(), ...store.stats(),
+        rejectedReplies: { ...rejectedReplies },
+        xff, trustedHops: TRUSTED_HOPS,
+      });
     }
     if (req.method === "GET" && url.pathname === "/block") {
       return handleBlockConfirm(res, url);

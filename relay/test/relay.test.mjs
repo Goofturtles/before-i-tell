@@ -359,9 +359,12 @@ const { headerBlock } = await import("../inbox.js");
     "outlook": "-----Original Message-----\nFrom: a@b.ca\n\nCome by Thursday.",
   };
   for (const [style, body] of Object.entries(styles)) {
-    const t = await post("/send", { to: "c@wrdsb.ca", message: "please read this" });
+    // a distinct recipient per case: the per-address cap is 6/day, and reusing
+    // one address here silently starved a later test of its own send
+    const who = `q${style.replace(/\W/g, "")}@wrdsb.ca`;
+    const t = await post("/send", { to: who, message: "please read this" });
     writeFileSync(join(TMP, "drop", `q-${style.replace(/\W/g, "")}.txt`),
-      `To: relay+bit${t.json.tag}@gmail.com\nFrom: c@wrdsb.ca\nSubject: Re:\n\n${body}\n`);
+      `To: relay+bit${t.json.tag}@gmail.com\nFrom: ${who}\nSubject: Re:\n\n${body}\n`);
     await pollOnce();
     const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
     const reply = read.json.messages?.find((m) => m.from === "adult");
@@ -369,6 +372,43 @@ const { headerBlock } = await import("../inbox.js");
        Boolean(reply) && /Thursday/.test(reply.body || ""),
        JSON.stringify(read.json.messages?.map((m) => [m.from, m.body?.slice(0, 30)])));
   }
+}
+
+/* LENGTH is the variable the test above misses. Those quotes are ~20 chars, so
+   nothing truncates and head- vs tail-slicing is indistinguishable. A student
+   using the composer's full 4000 chars makes the raw reply ~6000, and keeping
+   the FIRST 4000 delivered the student their own message read back to them
+   with the counsellor's sentence cut off the end — under a heading saying
+   "They replied". */
+{
+  const long = "I have been feeling really low and I need to talk to someone about it. ".repeat(56);
+  const t = await post("/send", { to: "longquote@wrdsb.ca", message: long.slice(0, 3900) });
+  ok("long student message accepted", t.json.ok === true, JSON.stringify(t.json));
+  writeFileSync(join(TMP, "drop", "longquote.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: longquote@wrdsb.ca\nSubject: Re:\n\n` +
+    `On Tue, Sep 2, Before I Tell wrote:\n> ${long}\n\nCome to my office Thursday, you are not in trouble.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  const reply = read.json.messages?.find((m) => m.from === "adult");
+  ok("a bottom-posted reply under a LONG quote keeps the counsellor's words",
+     Boolean(reply) && /office Thursday/.test(reply.body || ""),
+     "tail of stored reply: " + JSON.stringify((reply?.body || "").slice(-60)));
+}
+
+/* RFC 5322 header folding. Real mail wraps a long From: onto a second line
+   indented with whitespace; a single-line regex then captured only the display
+   name, addressOf() returned "", and the reply was consumed as an impostor. */
+{
+  const t = await post("/send", { to: "folded@wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "folded.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\n` +
+    `From: "Smith, Jane - Student Success & Guidance"\n <folded@wrdsb.ca>\n` +
+    `Subject: Re:\n\nCome by Thursday.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("a folded From: header still authenticates the counsellor",
+     Boolean(read.json.messages?.find((m) => m.from === "adult")),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
 }
 
 // isAutomated must inspect headers only — a quoted line in a reply body was
