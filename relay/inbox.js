@@ -11,7 +11,7 @@
 import { readdir, readFile, rename, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { addMessage, getThread, seenUid, markUid, degraded } from "./store.js";
+import { addMessage, getThread, seenUid, markUid, degraded, settled, dropMessage } from "./store.js";
 
 const MODE = (process.env.BIT_RELAY_MODE || "dry").toLowerCase();
 const DROP = process.env.BIT_INBOX_DROP || join(process.cwd(), "inbox-drop");
@@ -80,19 +80,38 @@ export function isAutomated(headers) {
  * Anyone the counsellor forwards our email to holds the tag (it's in Reply-To),
  * so the tag alone must NOT be treated as proof of identity.
  */
-function record(tag, body, fromHeader, rawHeaders) {
+/* Returns one of three outcomes, because "not filed" is two different things
+   and the caller must treat them oppositely:
+     "filed"       — stored; count it and consume the source message.
+     "rejected"    — deliberately not ours (unknown tag, auto-reply, bounce,
+                     wrong sender, empty). Consume it, or every poll retries
+                     the same spam forever.
+     "unpersisted" — it IS a real reply and we could not store it. Do NOT
+                     consume: marking it \Seen or renaming it .done destroys
+                     a counsellor's answer permanently, because both
+                     transports only ever look at unseen/undone items. */
+async function record(tag, body, fromHeader, rawHeaders) {
   const thread = getThread(tag);
-  if (!thread) return false;
-  if (isAutomated(rawHeaders)) return false;
+  if (!thread) return "rejected";
+  if (isAutomated(rawHeaders)) return "rejected";
   const sender = addressOf(fromHeader);
   if (!sender || sender !== String(thread.to).toLowerCase()) {
     console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender is not this thread's recipient`);
-    return false;
+    return "rejected";
   }
   const clean = stripQuoted(body);
-  if (!clean) return false;
-  addMessage(tag, "adult", clean);
-  return true;
+  if (!clean) return "rejected";
+  const msg = addMessage(tag, "adult", clean);
+  /* degraded() is decided once at boot and never flips, so it cannot see a
+     database that dies mid-life — the expected end state on a free plan.
+     Confirm THIS write landed before letting the caller consume the source.
+     Roll back on failure so the retry files it once, not twice. */
+  if ((await settled()) === false) {
+    dropMessage(tag, msg);
+    console.error(`[inbox] could not persist a reply on ${tag.slice(0, 8)} — leaving it collectable`);
+    return "unpersisted";
+  }
+  return "filed";
 }
 
 /* ---------------- dry mode: file drop ---------------- */
@@ -113,7 +132,10 @@ async function pollDrop() {
       const to = /^To:\s*(.+)$/im.exec(head)?.[1] || "";
       const from = /^From:\s*(.+)$/im.exec(head)?.[1] || "";
       const tag = tagFrom(to);
-      if (tag && record(tag, body, from, head)) n++;
+      const outcome = tag ? await record(tag, body, from, head) : "rejected";
+      // leave the file untouched so a later poll can still collect the reply
+      if (outcome === "unpersisted") break;
+      if (outcome === "filed") n++;
       await rename(full, full + ".done");
     } catch { /* a malformed drop file must not stop the loop */ }
   }
@@ -171,7 +193,11 @@ async function pollImap() {
         // full src, not a slice: Gmail's Received/DKIM/ARC block can exceed 4KB,
         // and a truncated header set would let a bounce through as "Them".
         // headerBlock() bounds it correctly either way.
-        if (record(tag, body, from, headerText || src)) n++;
+        const outcome = await record(tag, body, from, headerText || src);
+        // leave it UNSEEN: the fetch above asks for unseen mail only, so
+        // marking it now would consume a reply we failed to store
+        if (outcome === "unpersisted") break;
+        if (outcome === "filed") n++;
         markUid("INBOX", uid);
         await client.messageFlagsAdd({ uid }, ["\\Seen"], { uid: true });
       }

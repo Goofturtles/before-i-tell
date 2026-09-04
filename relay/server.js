@@ -342,6 +342,13 @@ function blockPage(res, title, note, form) {
    state would silently blocklist a real counsellor before they ever read the
    message. RFC 9110 §9.2.1: GET must be safe. */
 function handleBlockConfirm(res, url) {
+  /* Degraded: every lookup misses because the store is empty, and the "expired
+     or already closed" page below would tell a counsellor their opt-out is
+     already in effect when nothing has been recorded at all. */
+  if (store.degraded()) {
+    return blockPage(res, "Can't do that right now",
+      "Our storage is temporarily down, so we can't look this conversation up or record an opt-out. Nothing has changed. Please try this link again later — and no messages are being sent while this lasts.");
+  }
   const tag = url.searchParams.get("tag") || "";
   const thread = store.getThread(tag);
   if (!thread) return blockPage(res, "Nothing to block", "That link has expired or the conversation is already closed. No further messages will be sent from it.");
@@ -370,9 +377,21 @@ async function handleBlockAct(req, res) {
     }
     tag = new URLSearchParams(Buffer.concat(chunks).toString("utf8")).get("tag") || "";
   }
+  if (store.degraded()) {
+    return blockPage(res, "Can't do that right now",
+      "Our storage is temporarily down, so we can't record an opt-out. Nothing has changed. Please try this link again later — and no messages are being sent while this lasts.");
+  }
   const thread = store.getThread(tag);
   if (!thread) return blockPage(res, "Nothing to block", "That link has expired or the conversation is already closed.");
   store.blockRecipient(thread.to);
+  /* An opt-out that lives only in RAM is not an opt-out: the next restart
+     resumes messaging an adult who explicitly asked us to stop. Never print
+     "Nobody has to do anything else" until the block is actually stored. */
+  if ((await store.settled()) === false) {
+    console.error("[block] could not persist the opt-out for", thread.to);
+    return blockPage(res, "Not saved — please try again",
+      `We could not record the opt-out for <b>${escHtml(thread.to)}</b> just now, so we won't pretend it's done. No messages are being sent while our storage is down. Please use this link again shortly.`);
+  }
   return blockPage(res, "Blocked.", `<b>${escHtml(thread.to)}</b> will not receive any further messages from Before I Tell. Nobody has to do anything else.`);
 }
 

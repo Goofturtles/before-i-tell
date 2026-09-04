@@ -40,6 +40,12 @@ const REFUSALS = {
      plainly that nothing was sent, because the failure happened before the
      message went anywhere. */
   storage: "Level 2 can't take a message right now — the part that saves conversations is down, so anything sent would vanish instead of reaching anyone. Nothing was sent, and nothing was lost. Try again later. If this can't wait, Level 3 needs no email at all, and a real person answers right now on ",
+  /* The same outage, described for someone trying to READ. The send wording
+     talks about the wrong action for the person most likely to hit this —
+     they were told to come back for the reply — and its "nothing was sent"
+     answers a question they didn't ask. Lead with the reassurance that
+     matters: the conversation still exists. */
+  storage_read: "Your conversation is still there — we just can't open it this minute. The part that stores conversations is down, so nothing can be read or sent until it's back. Nothing was lost, and your codename and passphrase still work. Try again in a little while. If you need someone before then, a real person answers right now on ",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
@@ -47,6 +53,15 @@ const REFUSALS = {
   // line, so this can't hand a Canadian 1-800 to a student in Australia
   capacity: "The relay has hit its daily sending limit — nothing was sent. It resets within 24 hours. If this can't wait, Level 3 needs no email, and a real person answers right now on ",
 };
+
+/* DERIVED, never hand-listed. These refusals stop mid-sentence so the caller
+   can append the reader's own regional crisis line; printed raw they end
+   "…answers right now on " and swallow the helpline entirely. A hand-kept set
+   drifts the moment someone adds a third one and forgets — precisely the bug
+   this guards against, and it already shipped once. Both renderers below
+   (refusalNote and failText) read this one set. */
+const OPEN_ENDED = new Set(
+  Object.keys(REFUSALS).filter((k) => /\son\s*$/.test(REFUSALS[k])));
 
 let mount = null;
 
@@ -112,7 +127,7 @@ function refusalNote(status, reason, fallback = "Something went wrong. Nothing w
   }
   // both end mid-sentence so the caller's own region supplies the line —
   // hard-coding one here would hand a Canadian 1-800 to a student in Australia
-  if (reason === "capacity" || reason === "storage") {
+  if (OPEN_ENDED.has(reason)) {
     status.append(el("p", { class: "decode-note" }, REFUSALS[reason], helpInline(), "."));
     return;
   }
@@ -397,7 +412,10 @@ function renderResume(saved) {
       return;
     }
     // /thread now returns storage during an outage, which ends mid-sentence
-    refusalNote(status, res.reason, "Couldn't open that conversation.");
+    // this is a READ: the send wording ("nothing was sent") answers a question
+    // this student didn't ask and never says their conversation still exists
+    refusalNote(status, res.reason === "storage" ? "storage_read" : res.reason,
+      "Couldn't open that conversation.");
   });
 
   add(
@@ -436,7 +454,6 @@ function focusThreadTitle() {
    own region can supply the crisis line; they are NOT usable as bare text.
    Everything else is a complete sentence and is preferred over a generic
    "try again", which would talk past a refusal that is not transient. */
-const OPEN_ENDED = new Set(["capacity", "storage"]);
 function failText(fail, fallback) {
   const r = fail && fail.reason;
   return (r && REFUSALS[r] && !OPEN_ENDED.has(r)) ? REFUSALS[r] : fallback;
@@ -535,7 +552,11 @@ function renderThread(thread, pass) {
              has to go through refusalNote for the region's crisis line — and
              it should persist rather than fade, because it explains why the
              conversation the student is looking at cannot be refreshed. */
-          if (fail && OPEN_ENDED.has(fail.reason)) { refusalNote(status, fail.reason); return; }
+          // Refresh is a READ too — same reason to use the read wording
+          if (fail && OPEN_ENDED.has(fail.reason)) {
+            refusalNote(status, fail.reason === "storage" ? "storage_read" : fail.reason);
+            return;
+          }
           // "nothing was lost" is a claim about storage, so keep it for the
           // cases where it is certain — the request never reached the relay.
           const transient = !fail || fail.reason === "offline" || fail.reason === "timeout";

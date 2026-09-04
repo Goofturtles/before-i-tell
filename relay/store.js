@@ -175,18 +175,24 @@ export async function init() {
     rejection kills the process on Node ≥15, and leaving `writing` set would
     silently stop all persistence for the lifetime of the service. */
 async function flush() {
+  /* The refusal lives HERE, above the promise, and must stay above it. Inside
+     the IIFE it returned before any await, so the whole body — including
+     `finally { writing = null }` — ran synchronously, and the assignment below
+     then re-set `writing` to an already-settled promise. `writing` stayed
+     non-null forever, every later flush() took the coalescing branch and never
+     wrote again, and settled() reported a stale result. */
+  if (DURABLE && !loaded) {
+    // see init(): writing now would overwrite stored conversations
+    // with whatever this boot happens to hold
+    console.error("[store] refusing to write: the load failed this boot, so a write would erase stored conversations");
+    return;
+  }
   if (writing) { dirty = true; return writing; }
   writing = (async () => {
     try {
       do {
         dirty = false;
         if (DURABLE) {
-          if (!loaded) {
-            // see init(): writing now would overwrite stored conversations
-            // with whatever this boot happens to hold
-            console.error("[store] refusing to write: the load failed this boot, so a write would erase stored conversations");
-            return;
-          }
           // one row, replaced wholesale — same semantics as the atomic file
           // write it replaces, and the relay is single-instance so there is
           // no writer to race with.
@@ -199,6 +205,11 @@ async function flush() {
           const tmp = DATA_FILE + ".tmp";
           await writeFile(tmp, JSON.stringify(db), "utf8");
           await rename(tmp, DATA_FILE);
+          /* Set on BOTH branches. Only the Postgres branch used to, so a
+             single transient failure in file mode latched lastWriteOk at
+             false forever and /send answered 503 storage for the rest of the
+             process — and stats() reported a write state that never recovered. */
+          lastWriteOk = true;
         }
       } while (dirty);
     } catch (err) {
