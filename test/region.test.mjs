@@ -79,26 +79,35 @@ for (const id of REGION_ORDER) ok(REGIONS[id], `picker option ${id} resolves`);
 
 
 
-/* ---- source scan: the word may not appear ungated in UI code ----
-   The data assertions above cannot see prose, and prose is exactly where this
-   claim drifted three times (ask.js, codename.js, then safety.js). This reads
-   the real files and fails if "anonym*" appears in a UI module without a
-   primaryIsAnon() gate in the same file. region.js is the data home; corpus.js
-   is Ontario-gated content shown behind jurisdictionNote(). */
+/* ---- source scan: the word may not appear ungated, PER OCCURRENCE ----
+   Data assertions cannot see prose, and prose is where this drifted three
+   times. An earlier version of this scan gated per FILE — it passed a whole
+   file once any primaryIsAnon() call existed anywhere in it, which would have
+   waved through a new hard-coded claim in safety.js, ask.js or codename.js:
+   precisely the three files it drifted in. Now every occurrence must be
+   gated on its own line. region.js is the data home; corpus.js is
+   Ontario-gated content behind jurisdictionNote(). */
 import { readFileSync, readdirSync } from "node:fs";
 const UI_DIR = new URL("../js/", import.meta.url);
 const DATA_OR_CONTENT = new Set(["region.js", "corpus.js"]);
+// the product's own codename feature is legitimately anonymous — that is a
+// claim about US, not about a crisis service
+const PRODUCT_CLAIM = /anonymous messages to anyone|codename/i;
+
 for (const f of readdirSync(UI_DIR).filter((n) => n.endsWith(".js"))) {
   if (DATA_OR_CONTENT.has(f)) continue;
   const src = readFileSync(new URL(f, UI_DIR), "utf8");
-  // strip comments so explanatory prose about the rule doesn't trip it
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  if (!/anonym/i.test(code)) continue;
-  // codename.js legitimately describes the PRODUCT's own codename feature
-  const onlyProductClaim = f === "codename.js"
-    && code.match(/anonym/gi).length === (code.match(/anonymous messages to anyone/gi) || []).length;
-  ok(onlyProductClaim || /primaryIsAnon\(\)/.test(code),
-     `${f} uses "anonymous" only behind primaryIsAnon() (or about the product itself)`);
+  /* Blank out block comments across the WHOLE file before splitting — a naive
+     per-line strip misses continuation lines inside /* … *\/, and the comments
+     explaining this very rule are full of the word. Replacing each non-newline
+     with a space keeps line numbers honest in the failure message. */
+  const scrubbed = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
+  scrubbed.split(/\r?\n/).forEach((line, i) => {
+    const code = line.replace(/\/\/.*$/, "");
+    if (!/anonym/i.test(code)) return;
+    const gated = /primaryIsAnon\(\)/.test(code) || PRODUCT_CLAIM.test(code);
+    ok(gated, `${f}:${i + 1} "anonymous" is gated on primaryIsAnon() or is about the product itself`);
+  });
 }
 
 /* ---- timezone routing ---- */
