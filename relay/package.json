@@ -2,10 +2,12 @@
   "name": "bit-relay",
   "version": "1.0.0",
   "private": true,
-  "description": "Before I Tell — codename relay. Two-way anonymous messages between a student and their school counsellor.",
+  "description": "Before I Tell \u2014 codename relay. Two-way anonymous messages between a student and their school counsellor.",
   "type": "module",
   "main": "server.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
@@ -13,6 +15,7 @@
   },
   "dependencies": {
     "imapflow": "^1.0.171",
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^6.9.14",
+    "pg": "^8.13.1"
   }
 }

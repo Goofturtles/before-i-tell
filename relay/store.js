@@ -32,7 +32,56 @@ let db = { threads: {}, blocked: [], seenUids: {} };
 let writing = null;
 let dirty = false;
 
+/* ---------------- durable backing store ----------------
+
+   The shape of this file is unchanged: everything still operates on the
+   in-memory `db`, and persistence is one JSON blob. Only WHERE that blob
+   lives moved.
+
+   It used to be a file on the instance. On Render's free plan the instance
+   filesystem does not survive a restart, and the relay restarts on every
+   deploy and every idle spin-down — so a student's conversation, and their
+   counsellor's reply, were erased within minutes. A thread created at 17:55
+   was gone by 18:03. That is not a durability nicety; it is the Level 2
+   feature not working.
+
+   With DATABASE_URL set the blob lives in Postgres, outside the instance.
+   Without it (local dev, dry mode, the test suite) the file path is kept
+   exactly as it was, so nothing about running this locally changes. */
+const DB_URL = process.env.DATABASE_URL || "";
+export const DURABLE = Boolean(DB_URL);
+let pool = null;
+
+async function db_pool() {
+  if (pool) return pool;
+  const { default: pg } = await import("pg");
+  pool = new pg.Pool({
+    connectionString: DB_URL,
+    // Render's INTERNAL hostname has no dots and speaks plaintext on a private
+    // network; the external one requires TLS. Detect rather than guess wrong.
+    ssl: DB_URL.includes("render.com") ? { rejectUnauthorized: false } : false,
+    max: 3,
+  });
+  await pool.query("CREATE TABLE IF NOT EXISTS bit_store (id int PRIMARY KEY, data jsonb NOT NULL)");
+  return pool;
+}
+
 export async function init() {
+  if (DURABLE) {
+    try {
+      const { rows } = await (await db_pool()).query("SELECT data FROM bit_store WHERE id = 1");
+      if (rows[0]?.data) db = { threads: {}, blocked: [], seenUids: {}, ...rows[0].data };
+      console.log("[store] durable: Postgres (threads survive restarts)");
+    } catch (err) {
+      // Never take the relay down over storage. Running in memory still lets a
+      // student send — the loud part is that we say so, rather than pretending.
+      console.error("[store] POSTGRES UNAVAILABLE — running in memory, conversations will NOT survive a restart:", err?.message ?? err);
+    }
+    prune();
+    setInterval(prune, 6 * 3600 * 1000).unref();
+    return db;
+  }
+
   if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
   if (existsSync(DATA_FILE)) {
     try {
@@ -60,9 +109,18 @@ async function flush() {
     try {
       do {
         dirty = false;
-        const tmp = DATA_FILE + ".tmp";
-        await writeFile(tmp, JSON.stringify(db), "utf8");
-        await rename(tmp, DATA_FILE);
+        if (DURABLE) {
+          // one row, replaced wholesale — same semantics as the atomic file
+          // write it replaces, and the relay is single-instance so there is
+          // no writer to race with
+          await (await db_pool()).query(
+            "INSERT INTO bit_store (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data",
+            [JSON.stringify(db)]);
+        } else {
+          const tmp = DATA_FILE + ".tmp";
+          await writeFile(tmp, JSON.stringify(db), "utf8");
+          await rename(tmp, DATA_FILE);
+        }
       } while (dirty);
     } catch (err) {
       console.error("[store] persist failed (in-memory state is still good):", err.message);
@@ -223,6 +281,9 @@ export function stats() {
     threads: Object.keys(db.threads).length,
     messages: Object.values(db.threads).reduce((n, t) => n + t.messages.length, 0),
     blocked: db.blocked.length,
+    // surfaced so "do conversations survive a restart?" is answerable from
+    // outside, instead of being discovered by a student losing one
+    durable: DURABLE,
   };
 }
 
