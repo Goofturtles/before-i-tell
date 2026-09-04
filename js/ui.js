@@ -67,7 +67,11 @@ export function trapFocus(container) {
   document.addEventListener("keydown", handleKey, true);
   document.addEventListener("focusin", handleFocusIn);
   const target = $(FOCUSABLE, container) || container;
-  requestAnimationFrame(() => target.focus());
+  // a timer, not requestAnimationFrame: rAF doesn't fire while the tab isn't
+  // compositing, and this is the only thing that moves focus INTO the tier-3
+  // crisis dialog. The Tab handler would recover, but a keyboard user should
+  // not have to press a key to get inside the takeover.
+  setTimeout(() => target.focus(), 0);
 
   return () => {
     document.removeEventListener("keydown", handleKey, true);

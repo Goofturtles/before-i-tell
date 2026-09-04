@@ -76,7 +76,10 @@ export const router = {
     // a11y: move focus to the step heading on route CHANGES — not on the
     // initial page load, where stealing focus would bypass the skip link
     if (this._booted) {
-      requestAnimationFrame(() => {
+      // a timer, not requestAnimationFrame: rAF doesn't fire while the tab
+      // isn't compositing, and a dropped focus move leaves a keyboard user
+      // stranded at the top of the document after every route change
+      setTimeout(() => {
         const heading = document.querySelector("#view h1");
         if (heading) {
           heading.setAttribute("tabindex", "-1");

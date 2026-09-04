@@ -311,9 +311,9 @@ function renderBanner() {
      compositing, and this content is the crisis phone numbers: a missed frame
      leaves a distressed student staring at an empty coloured bar, with the
      live region announcing nothing. Observed happening in a hidden tab.
-     (The scroll offset this banner forces is handled declaratively by
-     `body:has(.safety-banner)` in components.css, for the same reason — the
-     one thing protecting this student must not depend on a callback.) */
+     (The extra scroll depth this banner forces is declared by
+     `body:has(.safety-banner)` in components.css for most targets; the crisis
+     jump measures nav + banner live at click time — see ui.js.) */
   setTimeout(() => {
     banner.append(
       el("span", {}, "Whatever is going on, you don't have to figure it out alone. "),
