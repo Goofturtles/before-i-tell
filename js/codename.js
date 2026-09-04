@@ -369,11 +369,15 @@ function renderResume(saved) {
     reply would arrive silently. Land focus on the thread heading, which now
     states the reply state. */
 function focusThreadTitle() {
-  // no preventScroll: from the bottom of a long thread the heading is off
-  // screen, and focus without a scroll strands a sighted keyboard user.
+  // Direct, not requestAnimationFrame: renderThread has already put the
+  // heading in the DOM synchronously, and rAF does not fire while the tab
+  // isn't compositing — which would silently drop the focus move. On Refresh
+  // that move is the ONLY way a screen-reader user learns a reply arrived.
+  // No preventScroll: from the bottom of a long thread the heading is off
+  // screen, and focusing without scrolling strands a sighted keyboard user.
   // .thread-title is an h1 inside .app-view, so it inherits the 72px
   // scroll-margin that clears the sticky nav.
-  requestAnimationFrame(() => mount?.querySelector(".thread-title")?.focus());
+  mount?.querySelector(".thread-title")?.focus();
 }
 
 async function openThread(tag, pass, onFail) {

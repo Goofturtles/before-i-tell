@@ -185,7 +185,7 @@
 
 /* step header */
 .step-head { margin-bottom: var(--s-6); }
-.app-view h1 { scroll-margin-top: 72px; } /* focused heading clears the sticky nav */
+.app-view h1 { scroll-margin-top: var(--chrome-h, 80px); } /* focused heading clears the sticky nav (and the tier-2 banner when it's up) */
 .step-head .eyebrow { margin-bottom: var(--s-2); }
 .step-head h1 { font-size: var(--t-head-md); line-height: 1.15; letter-spacing: -0.01em; }
 .step-head .lead { margin-top: var(--s-3); font-size: var(--t-body-lg); }
@@ -1097,6 +1097,20 @@ html { scroll-padding-bottom: 120px; }
    The crisis jump jumped the strip to y=0, i.e. UNDER the nav — "Need someone
    right now?" was hidden and the number pills half-covered, on the one control
    that must never be wrong. .answer-card is the Ask focus target's container. */
-.crisis { scroll-margin-top: 72px; }
+/* --chrome-h is the depth of the fixed chrome a scroll target must clear.
+   52px nav + breathing room by default; safety.js REPLACES it with a measured
+   value while the tier-2 banner is up (it sticks under the nav), so a student
+   in distress doesn't land the crisis numbers behind it. 80px, not 72, also
+   absorbs the 18px .step-enter entrance offset that scrollIntoView measures
+   mid-animation. */
+:root { --chrome-h: 80px; }
+/* While the tier-2 banner is up it sticks under the nav and roughly doubles
+   that chrome. :has() rather than a measured JS value, because the student
+   seeing this banner is the one most likely to press "Need help now?" — the
+   offset must not depend on a frame callback or timer firing. Browsers
+   without :has() keep the 80px floor, which still clears the nav. */
+body:has(.safety-banner) { --chrome-h: 136px; }
+@media (max-width: 560px) { body:has(.safety-banner) { --chrome-h: 176px; } } /* banner wraps */
+.crisis { scroll-margin-top: var(--chrome-h); }
 /* the Ask focus target is the answer's own heading */
-.answer-card, .answer-card h2 { scroll-margin-top: 72px; }
+.answer-card h2 { scroll-margin-top: var(--chrome-h); }

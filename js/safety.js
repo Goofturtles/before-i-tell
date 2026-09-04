@@ -307,6 +307,12 @@ function renderBanner() {
   const nav = $(".nav");
   if (nav && nav.parentNode) nav.parentNode.insertBefore(banner, nav.nextSibling);
   else document.body.prepend(banner);
+  /* This banner sticks UNDER the nav, so it deepens the chrome that scroll
+     targets must clear — see `body:has(.safety-banner)` in components.css,
+     which handles that declaratively. Deliberately NOT measured in JS here:
+     the obvious implementation depends on rAF or a timer firing, and if it
+     misses, a distressed student's crisis jump lands behind this very banner.
+     CSS can't miss. */
   requestAnimationFrame(() => {
     banner.append(
       el("span", {}, "Whatever is going on, you don't have to figure it out alone. "),

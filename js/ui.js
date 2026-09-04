@@ -161,7 +161,14 @@ export function wireCrisisLink() {
     try {
       crisis.scrollIntoView({ behavior: "instant", block: "start" });
     } catch {
+      // legacy path: scrollIntoView(true) resolves behavior:auto, which would
+      // pick up the page's CSS `scroll-behavior: smooth` — the one thing this
+      // handler must never do. Force it off for the jump, then restore.
+      const root = document.documentElement;
+      const prev = root.style.scrollBehavior;
+      root.style.scrollBehavior = "auto";
       crisis.scrollIntoView(true);
+      root.style.scrollBehavior = prev;
     }
   });
 }
