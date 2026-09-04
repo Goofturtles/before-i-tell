@@ -109,7 +109,7 @@ export const ask = {
       e.preventDefault();
       const q = input.value.trim();
       if (!q) return;
-      if (!safety.clear(q)) return; // tier 3: takeover owns the screen now
+      if (!safety.clear(q, input)) return; // tier 3: takeover owns the screen now
       const { entry, alternates } = retrieval.answer(q);
       if (entry) renderAnswer(results, entry);
       else renderRefusal(results, alternates);

@@ -222,7 +222,7 @@ function renderCompose() {
     // It raises the dialog itself, so we only add the explanation behind it —
     // otherwise dismissing leaves the student staring at a Send button that
     // will never work, with no idea why.
-    if (!safety.clear(message)) { crisisFork(status, { raise: false, restoreTo: msgInput }); return; }
+    if (!safety.clear(message, msgInput)) { crisisFork(status, { raise: false }); return; }
 
     sendBtn.disabled = true;
     sendBtn.textContent = "Sending…";
@@ -369,8 +369,6 @@ function renderResume(saved) {
       el("button", { class: "btn btn--secondary", type: "button", onclick: renderIntro }, "Back")));
 }
 
-/** onFail keeps the CURRENT screen alive — a failed refresh must never
-    destroy the once-shown passphrase screen behind an unexplained login form */
 /** Refresh rebuilds the whole screen, so focus would fall to <body> and a new
     reply would arrive silently. Land focus on the thread heading, which now
     states the reply state. */
@@ -386,6 +384,8 @@ function focusThreadTitle() {
   mount?.querySelector(".thread-title")?.focus();
 }
 
+/** onFail keeps the CURRENT screen alive — a failed refresh must never
+    destroy the once-shown passphrase screen behind an unexplained login form */
 async function openThread(tag, pass, onFail) {
   const res = await relayPost("/thread", { tag, pass });
   if (res.ok) { renderThread(res, pass); focusThreadTitle(); }
@@ -405,7 +405,7 @@ function renderThread(thread, pass) {
     clearNode(status);
     const message = replyBox.value.trim();
     if (!message) { status.append(note(REFUSALS.empty)); return; }
-    if (!safety.clear(message)) { crisisFork(status, { raise: false, restoreTo: replyBox }); return; }
+    if (!safety.clear(message, replyBox)) { crisisFork(status, { raise: false }); return; }
     replyBtn.disabled = true;
     replyBtn.textContent = "Sending…";
     const slow = slowNote(status);

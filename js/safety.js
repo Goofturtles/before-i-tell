@@ -141,10 +141,14 @@ export const safety = {
   },
 
   /** submit-time check; returns true when the caller may proceed */
-  clear(text) {
+  /** @param restoreTo where to send focus when the takeover is dismissed.
+      Without it the student lands on the Send button they just pressed rather
+      than the words they wrote — and this is the COMMON crisis path, since
+      the client check runs before the relay's. */
+  clear(text, restoreTo) {
     const { tier } = this._scan(text);
     if (tier === 3) {
-      if (!this._dismissed()) { this.takeover(this._everFired() ? "again" : "first"); return false; }
+      if (!this._dismissed()) { this.takeover(this._everFired() ? "again" : "first", restoreTo); return false; }
       this._elevate();
       return true; // dismissed once: let the corpus answer help instead of re-blocking
     }
