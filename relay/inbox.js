@@ -82,14 +82,51 @@ export function unfold(headerText) {
        "domain" was the school, which passed the same-domain check AND got
        interpolated into the note the student reads. */
 export function addressOf(headerValue) {
-  const s = String(headerValue || "").replace(/"(?:[^"\\]|\\.)*"/g, " ");
-  const angles = s.match(/<[^<>]*>/g);
-  const candidate = (angles ? angles[angles.length - 1].slice(1, -1) : s).trim();
+  // quoted display names and parenthesised comments are sender-chosen text
+  const s = String(headerValue || "")
+    .replace(/"(?:[^"\\]|\\.)*"/g, " ")
+    .replace(/\((?:[^()\\]|\\.)*\)/g, " ");
   const strict = /^[^\s<>,;:"@]+@[^\s<>,;:"@]+$/;
-  if (strict.test(candidate)) return candidate.toLowerCase();
-  // no usable angle-addr: accept a bare token only if it stands alone
-  const bare = /(?:^|\s)([^\s<>,;:"@]+@[^\s<>,;:"@]+)(?:\s|$)/.exec(s);
-  return bare ? bare[1].toLowerCase() : "";
+  const found = [];
+  for (const a of s.match(/<[^<>]*>/g) || []) {
+    const inner = a.slice(1, -1).trim();
+    if (strict.test(inner)) found.push(inner.toLowerCase());
+  }
+  // bare addresses OUTSIDE any angle brackets count too
+  for (const b of s.replace(/<[^<>]*>/g, " ").match(/[^\s<>,;:"@]+@[^\s<>,;:"@]+/g) || []) {
+    if (strict.test(b)) found.push(b.toLowerCase());
+  }
+  /* Exactly one, or nothing. `From:` is a mailbox-LIST in RFC 5322, so
+       From: bot@evil.com, Guidance <guidance@school.ca>
+     is valid and Gmail delivers it — and "take the last angle-addr" happily
+     returned the school address, re-opening the spoof this function exists to
+     close. Worse, when that address equals the thread's recipient the
+     "replied by someone else" note is skipped too, so an outsider is filed as
+     the counsellor verbatim. A real reply never names two senders; refusing
+     is both correct and safe. */
+  const uniq = [...new Set(found)];
+  return uniq.length === 1 ? uniq[0] : "";
+}
+
+/* Public suffixes a domain can sit UNDER but never BE. Treating one as a
+   parent domain would make every school under it "the same school": with
+   `@ca` as the sender, "wrdsb.ca".endsWith(".ca") is true, so any address at
+   the bare TLD could answer any Canadian school's thread. Mirrors the shapes
+   schools.js already enumerates. */
+const PUBLIC_SUFFIX = [
+  /^[a-z]{2,}$/i,               // bare TLD: ca, net, edu, com
+  /^on\.ca$/i, /^bc\.ca$/i, /^ab\.ca$/i, /^qc\.ca$/i, /^ns\.ca$/i,
+  /^mb\.ca$/i, /^sk\.ca$/i, /^nb\.ca$/i, /^nl\.ca$/i, /^pe\.ca$/i,
+  /^edu\.[a-z]{2}$/i, /^ac\.[a-z]{2}$/i, /^sch\.[a-z]{2}$/i,
+  /^k12\.[a-z]{2}\.us$/i, /^edu\.on\.ca$/i,
+];
+
+/** Can this domain be registered by one organisation — i.e. is it safe to
+    treat as "one school" for the purpose of matching a subdomain? */
+export function isRegistrable(domain) {
+  const d = String(domain || "").toLowerCase();
+  if (d.split(".").length < 2) return false;
+  return !PUBLIC_SUFFIX.some((re) => re.test(d));
 }
 
 /** Did the receiving server explicitly say this message FAILED authentication?
@@ -107,7 +144,15 @@ export function addressOf(headerValue) {
     Authentication-Results line to the body of the message, but it lands
     BELOW Gmail's, and headerBlock keeps only the real header block.) */
 export function authFailed(headers) {
-  const h = headerBlock(headers).toLowerCase();
+  /* UNFOLD FIRST. Gmail always wraps this header, putting every dkim=/spf=/
+     dmarc= token on a continuation line:
+       Authentication-Results: mx.google.com;
+              dkim=fail ...; spf=fail; dmarc=fail (p=REJECT)
+     Matching the first physical line therefore saw no verdict at all and this
+     function returned false for every message ever received — a check that was
+     100% dead while /health reported "no forgery seen". Verified by running it
+     against a real folded header. */
+  const h = unfold(headerBlock(headers)).toLowerCase();
   const lines = h.split("\n").filter((l) => l.startsWith("authentication-results:"));
   if (!lines.length) return false;
   const all = lines.join(" ");
@@ -127,7 +172,9 @@ export function headerBlock(raw) {
 /** Machine mail must never be shown to a child as their counsellor's answer.
     An out-of-office or a bounce filed as "Them" after a disclosure is cruel. */
 export function isAutomated(headers) {
-  const h = headerBlock(headers);
+  // unfolded for the same reason as authFailed: `From: "Automatic Reply"\n
+  // <no-reply@board.ca>` hid the no-reply address from the [^\n]* below
+  const h = unfold(headerBlock(headers));
   return /^auto-submitted:\s*auto/im.test(h)
     || /^precedence:\s*(bulk|auto_reply|junk|list)/im.test(h)
     || /^x-auto(response|reply)/im.test(h)
@@ -211,8 +258,12 @@ async function record(tag, body, fromHeader, rawHeaders) {
      cannot pass as a subdomain of "wrdsb.ca". */
   const sameDomain = Boolean(senderDomain) && Boolean(threadDomain) && (
     senderDomain === threadDomain ||
-    senderDomain.endsWith("." + threadDomain) ||
-    threadDomain.endsWith("." + senderDomain));
+    // thread's domain is the parent: sender is a subdomain of the school
+    (isRegistrable(threadDomain) && senderDomain.endsWith("." + threadDomain)) ||
+    // sender's domain is the parent: the Exchange-primary answering a
+    // subdomain thread. The parent must be registrable, or "@ca" matches
+    // every .ca school and "@net" every .net one.
+    (isRegistrable(senderDomain) && threadDomain.endsWith("." + senderDomain)));
   if (!sender || (sender !== to && !sameDomain)) {
     rejected.senderMismatch++;
     console.warn(`[inbox] dropped reply on ${tag.slice(0, 8)}: sender ${sender || "(unparseable)"} is outside this thread's school — it stays in the mailbox, marked read`);
@@ -413,15 +464,31 @@ function htmlToText(html) {
     falls back to a de-tagged text/html part, never raw MIME */
 export function extractPlain(source) {
   const s = String(source || "").replace(/\r\n/g, "\n");
-  /* Split on the message's DECLARED boundary when there is one. Splitting on
-     any `\n--…\n` also matched a counsellor separating paragraphs with "---",
-     which silently truncated their reply at that line. A real MIME boundary
-     is announced in the Content-Type header, so use it; only fall back to the
-     loose pattern when no boundary was declared. */
-  const declared = /boundary="?([^"\s;]+)"?/i.exec(s)?.[1];
-  const parts = declared
-    ? s.split(new RegExp("\\n--" + declared.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:--)?\\n?"))
+  /* Split on the message's DECLARED boundaries. Splitting on any `\n--…\n`
+     also matched a counsellor separating paragraphs with "---", truncating
+     their reply there.
+
+     ALL of them, not the first. A normal Outlook reply with a signature image
+     is multipart/mixed[ multipart/alternative[plain, html], image ], and
+     splitting only on the outer boundary leaves the inner part whole: its head
+     reads "Content-Type: multipart/alternative", which matches neither
+     text/plain nor text/html, so every part is skipped and the function fell
+     through to returning the ENTIRE MIME body — a child who had just disclosed
+     would open their reply and read boundary markers, headers, and base64
+     image bytes. Verified by running it before this fix.
+
+     Quoted form handled too: a boundary may legally contain spaces. */
+  const boundaries = [...s.matchAll(/boundary=(?:"([^"]*)"|([^;\s]+))/gi)]
+    .map((m) => m[1] ?? m[2]).filter(Boolean);
+  const esc = (b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let parts = boundaries.length
+    ? s.split(new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"))
     : s.split(/\n--[^\n]+\n/);
+  /* Belt and braces: if the declared split found no usable text part, fall
+     back to the loose one rather than risk returning raw MIME. */
+  if (boundaries.length && !parts.some((p) => /^content-type:\s*text\//im.test(p))) {
+    parts = s.split(/\n--[^\n]+\n/);
+  }
   const candidates = parts.length > 1 ? parts : [s];
   let htmlFallback = "";
   for (const part of candidates) {

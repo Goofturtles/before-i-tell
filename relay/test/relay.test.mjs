@@ -451,6 +451,82 @@ const { headerBlock } = await import("../inbox.js");
      JSON.stringify(read.json.messages?.map((m) => [m.from, m.body?.slice(0, 40)])));
 }
 
+/* Header FOLDING defeated two whole checks. Gmail always wraps
+   Authentication-Results, putting every verdict on a continuation line, so
+   matching the first physical line meant authFailed() returned false for every
+   message ever received — a security check that was 100% dead while /health
+   reported "no forgery seen". */
+{
+  const { authFailed, isAutomated } = await import("../inbox.js");
+  const folded = "Authentication-Results: mx.google.com;\n" +
+                 "       dkim=fail; spf=fail; dmarc=fail (p=REJECT)\nFrom: a@b.ca\n\nbody";
+  ok("authFailed sees a FOLDED dmarc=fail (as Gmail actually sends it)", authFailed(folded) === true);
+  ok("authFailed does not fire when everything passes",
+     authFailed("Authentication-Results: mx.google.com;\n  dkim=pass; spf=pass; dmarc=pass\nFrom: a@b.ca\n\nb") === false);
+  ok("authFailed requires positive evidence, not proof of a pass",
+     authFailed("From: a@b.ca\nSubject: x\n\nbody") === false);
+  ok("an Authentication-Results line in the BODY cannot forge a verdict",
+     authFailed("From: a@b.ca\n\nAuthentication-Results: dmarc=fail") === false);
+  ok("isAutomated sees a folded no-reply From",
+     isAutomated('From: "Automatic Reply"\n <no-reply@board.ca>\nSubject: x\n\nb') === true);
+}
+
+/* `From:` is a mailbox-LIST in RFC 5322, so naming two senders is legal and
+   Gmail delivers it. "Take the last angle-addr" then handed back the school
+   address and re-opened the spoof — and because it equalled the thread's
+   recipient, the "replied by someone else" note was skipped too. */
+{
+  const { addressOf } = await import("../inbox.js");
+  ok("a From naming two mailboxes is refused, not resolved to the nicer one",
+     addressOf("bot@evil.com, Guidance <guidance@wrdsb.ca>") === "");
+  ok("the same in bare form", addressOf("bot@evil.com, guidance@wrdsb.ca") === "");
+  ok("a parenthesised comment does not break a normal address",
+     addressOf("jane@wrdsb.ca (Jane Smith)") === "jane@wrdsb.ca");
+}
+
+/* A public suffix is a domain you sit UNDER, never one you ARE. Without a
+   floor, sender "@ca" matched every .ca school: "wrdsb.ca".endsWith(".ca"). */
+{
+  const { isRegistrable } = await import("../inbox.js");
+  for (const d of ["ca", "net", "on.ca", "edu.on.ca", "ac.uk"]) {
+    ok(`${d} is not treated as one organisation's domain`, isRegistrable(d) === false);
+  }
+  for (const d of ["wrdsb.ca", "mail.wrdsb.ca", "pdsb.net"]) {
+    ok(`${d} is a registrable domain`, isRegistrable(d) === true);
+  }
+  const t = await post("/send", { to: "suffix@wrdsb.ca", message: "please read this" });
+  writeFileSync(join(TMP, "drop", "suffix.txt"),
+    `To: relay+bit${t.json.tag}@gmail.com\nFrom: guidance@ca\nSubject: Re:\n\nLet me in.\n`);
+  await pollOnce();
+  const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+  ok("a sender at a bare public suffix cannot answer a school thread",
+     !read.json.messages?.some((m) => m.from === "adult"),
+     JSON.stringify(read.json.messages?.map((m) => m.from)));
+}
+
+/* A normal Outlook reply carrying a signature image is
+   multipart/mixed[ multipart/alternative[plain, html], image ]. Splitting on
+   the OUTER boundary only left the inner part whole, every part was skipped,
+   and the function returned the entire MIME body — a child who had just
+   disclosed would open their reply and read boundary markers, headers and
+   base64 image bytes. */
+{
+  const { extractPlain } = await import("../inbox.js");
+  const nested = [
+    "From: c@wrdsb.ca", 'Content-Type: multipart/mixed; boundary="OUTER"', "",
+    "--OUTER", 'Content-Type: multipart/alternative; boundary="INNER"', "",
+    "--INNER", "Content-Type: text/plain; charset=utf-8", "", "Come to my office Thursday.",
+    "--INNER", "Content-Type: text/html", "", "<p>Come to my office Thursday.</p>", "--INNER--",
+    "--OUTER", "Content-Type: image/png", "Content-Transfer-Encoding: base64", "",
+    "iVBORw0KGgoAAAANSUhEUg==", "--OUTER--", "",
+  ].join("\n");
+  const out = extractPlain(nested);
+  ok("nested multipart does not leak raw MIME to the student",
+     !/--(OUTER|INNER)|Content-Type:|iVBORw0KGgo/.test(out), JSON.stringify(out.slice(0, 80)));
+  ok("nested multipart still yields the counsellor's sentence",
+     /Come to my office Thursday\./.test(out), JSON.stringify(out.slice(0, 80)));
+}
+
 /* Subdomain, both directions: school mail routinely rewrites x@mail.board.ca
    to the primary x@board.ca, and refusing that is the exact failure the
    same-domain policy exists to fix. "evilwrdsb.ca" must NOT pass as one. */
