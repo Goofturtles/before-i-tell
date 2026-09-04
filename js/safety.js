@@ -128,12 +128,14 @@ export const safety = {
       clearTimeout(timer);
       timer = setTimeout(() => {
         const { tier } = this._scan(inputEl.value);
-        if (tier === 3 && !this._dismissed()) this.takeover(this._everFired() ? "again" : "first");
+        // pass the input as the restore target: focus can move during the
+        // 400ms debounce, and on blur it has already left
+        if (tier === 3 && !this._dismissed()) this.takeover(this._everFired() ? "again" : "first", inputEl);
       }, 400);
     });
     inputEl.addEventListener("blur", () => {
       const { tier } = this._scan(inputEl.value);
-      if (tier === 3 && !this._dismissed()) this.takeover(this._everFired() ? "again" : "first");
+      if (tier === 3 && !this._dismissed()) this.takeover(this._everFired() ? "again" : "first", inputEl);
       else if (tier >= 2) this._elevate();
     });
   },
@@ -165,7 +167,7 @@ export const safety = {
   _active: false,
   _releaseTrap: null,
 
-  takeover(variant = "first") {
+  takeover(variant = "first", restoreTo) {
     if (this._active) return;
     this._active = true;
 
@@ -233,7 +235,7 @@ export const safety = {
     this._inerted.forEach((n) => { n.inert = true; });
 
     this._overlay = overlay;
-    this._releaseTrap = trapFocus(overlay);
+    this._releaseTrap = trapFocus(overlay, restoreTo);
 
     this._escBlock = (e) => {
       // stopImmediatePropagation only silences listeners registered AFTER

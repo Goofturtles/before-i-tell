@@ -35,8 +35,12 @@ export function clearNode(node) {
 /* ---------- focus trap (takeover dialog) ---------- */
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function trapFocus(container) {
-  const previouslyFocused = document.activeElement;
+/** @param restoreTo optional element to return focus to on release. Needed
+    when the dialog is raised from a `blur` handler: activeElement is already
+    <body> by then, so capturing it would strand the user at the top of the
+    document on dismissal instead of back where they were typing. */
+export function trapFocus(container, restoreTo) {
+  const previouslyFocused = restoreTo || document.activeElement;
   // getClientRects() works for position:fixed elements (offsetParent does not)
   const visible = (n) => n.getClientRects().length > 0;
 
