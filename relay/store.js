@@ -50,6 +50,31 @@ let dirty = false;
    exactly as it was, so nothing about running this locally changes. */
 const DB_URL = process.env.DATABASE_URL || "";
 export const DURABLE = Boolean(DB_URL);
+
+/* jsonb rejects a NUL outright ("unsupported Unicode escape sequence"), so one
+   NUL in one message would make EVERY later write fail -- silently, and
+   forever. It carries no meaning in a message someone typed, so it is dropped.
+
+   Stripped per string value in a REPLACER, never with a regex over the finished
+   JSON. Both of those alternatives are wrong and both shipped or were tried:
+     - matching the raw NUL character finds nothing, because stringify has
+       already rewritten it as the six-character escape \u0000;
+     - matching that escape as TEXT corrupts real messages, because a student
+       who types \u0000 yields an escaped backslash, and removing the tail
+       leaves a stray backslash that fuses with the next character (a test
+       message turned into a tab).
+   Exported so relay.test.mjs can hold this behaviour down. */
+export function nulSafeJson(db) {
+  return JSON.stringify(db, (_k, v) =>
+    typeof v === "string" ? v.replace(/\u0000/g, "") : v);
+}
+/* `loaded` gates every write: see init(). `lastWriteOk` is reported on /health
+   so durability is a fact about the last write, not a fact about an env var —
+   the whole incident that led here was a status that looked fine while data
+   was quietly evaporating. */
+let loaded = false;
+let lastWriteOk = null;
+let lastWriteErr = "";
 /* Memoise the PROMISE, not the pool. Awaiting `import("pg")` yields, so two
    callers racing the first call would each construct a Pool and the loser's
    connections would leak for the life of the process. On failure the memo is
@@ -83,11 +108,16 @@ export async function init() {
     try {
       const { rows } = await (await db_pool()).query("SELECT data FROM bit_store WHERE id = 1");
       if (rows[0]?.data) db = { threads: {}, blocked: [], seenUids: {}, ...rows[0].data };
+      loaded = true;
       console.log("[store] durable: Postgres (threads survive restarts)");
     } catch (err) {
-      // Never take the relay down over storage. Running in memory still lets a
-      // student send — the loud part is that we say so, rather than pretending.
-      console.error("[store] POSTGRES UNAVAILABLE — running in memory, conversations will NOT survive a restart:", err?.message ?? err);
+      /* Do NOT set `loaded`. This is the dangerous case: a cold or asleep
+         Postgres at boot leaves db empty, and the very next flush() would
+         upsert that empty blob over row 1 — destroying every conversation that
+         HAD survived. A failed read must never become a write. flush() refuses
+         while !loaded, so this degrades to "in memory this boot" instead of
+         "everyone's history is gone". */
+      console.error("[store] POSTGRES READ FAILED — running in memory for this boot; writes are DISABLED so nothing overwrites stored conversations:", err?.message ?? err);
     }
     prune();
     setInterval(prune, 6 * 3600 * 1000).unref();
@@ -122,12 +152,20 @@ async function flush() {
       do {
         dirty = false;
         if (DURABLE) {
+          if (!loaded) {
+            // see init(): writing now would overwrite stored conversations
+            // with whatever this boot happens to hold
+            console.error("[store] refusing to write: the load failed this boot, so a write would erase stored conversations");
+            return;
+          }
           // one row, replaced wholesale — same semantics as the atomic file
           // write it replaces, and the relay is single-instance so there is
-          // no writer to race with
+          // no writer to race with.
+          // NUL must be stripped before it reaches jsonb -- see nulSafeJson.
           await (await db_pool()).query(
             "INSERT INTO bit_store (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data",
-            [JSON.stringify(db)]);
+            [nulSafeJson(db)]);
+          lastWriteOk = true;
         } else {
           const tmp = DATA_FILE + ".tmp";
           await writeFile(tmp, JSON.stringify(db), "utf8");
@@ -135,7 +173,9 @@ async function flush() {
         }
       } while (dirty);
     } catch (err) {
-      console.error("[store] persist failed (in-memory state is still good):", err.message);
+      lastWriteOk = false;
+      lastWriteErr = String(err?.message ?? err).slice(0, 120);
+      console.error("[store] persist failed (in-memory state is still good):", lastWriteErr);
     } finally {
       writing = null;
     }
@@ -293,9 +333,13 @@ export function stats() {
     threads: Object.keys(db.threads).length,
     messages: Object.values(db.threads).reduce((n, t) => n + t.messages.length, 0),
     blocked: db.blocked.length,
-    // surfaced so "do conversations survive a restart?" is answerable from
-    // outside, instead of being discovered by a student losing one
+    // answerable from outside, instead of being discovered by a student losing
+    // a conversation. `durable` alone would report true while every write was
+    // failing, so report what actually happened as well.
     durable: DURABLE,
+    loaded: DURABLE ? loaded : null,
+    lastWriteOk,
+    ...(lastWriteErr ? { lastWriteErr } : {}),
   };
 }
 

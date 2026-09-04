@@ -31,7 +31,11 @@ const REFUSALS = {
      happens a student sees this message and reasonably concludes they typed
      their own passphrase wrong. Blaming them for our data loss is the kind of
      small dishonesty this product exists not to commit. */
-  auth: "That codename and passphrase don't open a conversation. Two things it could be: a typo (the passphrase is case-sensitive), or the conversation is genuinely gone — this runs on a free server that loses saved conversations when it restarts. If you're sure you typed it right, that's what happened, and it's our fault, not yours.",
+  /* Names both causes without asserting either. The previous wording declared
+     that the server had lost the conversation — true while storage was on the
+     instance disk, false now that it is in a database, and it told a student
+     who had merely mistyped a case-sensitive passphrase to stop trying. */
+  auth: "That codename and passphrase don't open a conversation. Most often that's a typo — the passphrase is case-sensitive, so check the capitals and the dash. If you're sure it's right, then the conversation itself is gone rather than hidden, and that's on us, not you: start a new one and your counsellor will still recognise what it's about.",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",

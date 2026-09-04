@@ -97,12 +97,28 @@ personal one — counsellors see the sender address), `BIT_PUBLIC_URL` (the
 service's own onrender.com URL) and `BIT_ALLOW_ORIGIN`
 (`https://goofturtles.github.io`).
 
-⚠️ **Durability.** The blueprint deploys on the free plan, which cannot attach a
-disk and has an ephemeral filesystem: conversations are lost on redeploy and on
-spin-down after inactivity, and a reply arriving for a lost thread is dropped.
-That is survivable for a judged demo and *not* acceptable for real students —
-switch to `plan: starter` and uncomment the `disk:` block before anyone relies
-on it. The file says exactly this at the point of the change.
+⚠️ **Durability — set `DATABASE_URL`.** The free plan's filesystem is ephemeral
+and cannot take a disk, so *without* a database every redeploy and every
+spin-down erases every conversation, and a reply arriving for a lost thread is
+dropped. That is not hypothetical: it is why counsellor replies never showed up
+during testing.
+
+Attach a Render Postgres instance and link its `DATABASE_URL`, and `store.js`
+persists there instead. Confirm which mode is actually live at `/health`:
+
+```json
+{ "durable": true, "loaded": true, "lastWriteOk": true }
+```
+
+`durable:false` means conversations are being lost again. `loaded:false` means
+the boot read failed — the relay then *refuses to write*, deliberately, because
+a write from an empty in-memory state would overwrite every stored conversation
+with nothing.
+
+⚠️ Render's **free Postgres expires 30 days after creation** (this one:
+**2026-10-04**) and is then deleted. Upgrade it or create and relink a
+replacement before that date, or the relay quietly falls back to losing
+conversations.
 
 Then point the website at it: put the deployed origin in `PROD_RELAY` in
 `../js/config.js`. Leave it empty and Level 2 degrades to a clearly-labelled preview

@@ -13,6 +13,12 @@ process.env.BIT_OUTBOX_DIR = join(TMP, "outbox");
 process.env.BIT_INBOX_DROP = join(TMP, "drop");
 process.env.BIT_AUTOSTART = "0";
 process.env.PORT = "8799";
+/* Force the file store. Without this, a DATABASE_URL in relay/.env (which
+   env.js injects for anyone trying the durable path locally) would make these
+   139 tests write their synthetic blob straight over row 1 of the real
+   database — every student's conversation replaced by fixtures. Note `delete`
+   is not enough: env.js re-injects anything absent, so it must be set empty. */
+process.env.DATABASE_URL = "";
 
 const { server, _resetRates } = await import("../server.js");
 const store = await import("../store.js");
@@ -350,6 +356,46 @@ ok("real Precedence header IS treated as automated",
   await pollOnce();
   const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
   ok("CRLF drop file parses on Windows", read.json.messages.length === 2, JSON.stringify(read.json.messages?.map(m => m.from)));
+}
+
+/* ---- NUL sanitising (jsonb refuses a NUL, and refuses it forever) ----
+   This shipped broken once: the first fix matched the raw NUL character,
+   which never appears in stringified JSON, so it silently did nothing and
+   one NUL would have frozen all persistence. Testing the real exported
+   function, not a copy of it. */
+{
+  const NUL = String.fromCharCode(0);
+  const { nulSafeJson } = store;
+
+  const round = (o) => JSON.parse(nulSafeJson(o));
+  const hasNul = (o) => JSON.stringify(o).includes(NUL);
+
+  ok("NUL is removed from a message",
+     round({ m: "hi" + NUL + "there" }).m === "hithere");
+  ok("output carries no NUL at all",
+     !nulSafeJson({ m: "a" + NUL }).includes(NUL));
+  ok("NUL is removed inside nested objects and arrays",
+     !hasNul(round({ t: { msgs: ["a" + NUL, "b"], who: "c" + NUL + "d" } })));
+
+  /* The trap in the "obvious" alternative: stripping the escape as TEXT.
+     A student typing \u0000 produces an escaped backslash in the JSON,
+     and removing the tail leaves a stray backslash that fuses with the next
+     character -- one test message silently became a tab. Their text must
+     survive byte for byte. */
+  const typed = "hi" + '\\' + "u0000there";
+  ok("text that merely LOOKS like the escape is left untouched",
+     round({ m: typed }).m === typed, JSON.stringify(round({ m: typed }).m));
+
+  ok("output is always valid JSON pg can parse",
+     typeof round({ a: "x" + NUL, b: 1, c: null, d: [NUL] }) === "object");
+
+  // a NUL in a live message must not stop the thread persisting
+  {
+    const t = await post("/send", { to: "c@wrdsb.ca", message: "null byte" + NUL + " here" });
+    const read = await post("/thread", { tag: t.json.tag, pass: t.json.pass });
+    ok("a message containing a NUL still stores and reads back",
+       read.json.messages?.length === 1, JSON.stringify(read.json.messages));
+  }
 }
 
 /* ---------------- done ---------------- */
