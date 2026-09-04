@@ -528,7 +528,17 @@ export function extractPlain(source) {
     const end = s.indexOf("\n\n");
     if (end === -1) return "";
     const head = s.slice(0, end);
-    const type = (/content-type:\s*([^;\s]+)/i.exec(unfold(head))?.[1] || "text/plain").toLowerCase();
+    /* ANCHORED. Unanchored, this matched the first "content-type:" ANYWHERE in
+       the header block — and Microsoft 365 prepends a DKIM-Signature whose h=
+       tag list literally reads
+         h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-...
+       so the captured "type" became "mime-version:x-ms-exchange-senderadcheck",
+       matched neither branch, and every plain-text reply from an M365 school
+       (most Ontario boards) returned "" and was destroyed. X-Original-Content-
+       Type does the same. Unfolding puts each real header at a line start, so
+       ^…$m can only match a genuine header. Verified by running it against a
+       realistic M365 header block. */
+    const type = (/^content-type:\s*([^;\s]+)/im.exec(unfold(head))?.[1] || "text/plain").toLowerCase();
     const body = decodeBody(head, s.slice(end + 2));
     if (type === "text/html") return htmlToText(body);
     if (type === "text/plain") return body;
@@ -547,8 +557,16 @@ export function extractPlain(source) {
     const split = part.indexOf("\n\n");
     if (split === -1) continue;
     const head = part.slice(0, split);
-    const isHtml = /content-type:\s*text\/html/i.test(head);
-    if (!/content-type:\s*text\/plain/i.test(head) && !isHtml) continue;
+    // anchored for the same reason as the single-part branch above; parts[0]
+    // is the RFC822 header block plus Outlook's "This is a multi-part message"
+    // preamble, and an unanchored match there returned the preamble as the reply
+    const uhead = unfold(head);
+    const isHtml = /^content-type:\s*text\/html/im.test(uhead);
+    if (!/^content-type:\s*text\/plain/im.test(uhead) && !isHtml) continue;
+    /* An attachment is not the reply. Exchange emits the body as text/html and
+       drops an "ATT00001.txt" beside it, and taking the first text/plain part
+       returned the attachment while the real answer became only a fallback. */
+    if (/^content-disposition:\s*attachment/im.test(uhead) || /\bfilename=/i.test(uhead)) continue;
     const body = decodeBody(head, part.slice(split + 2));
     if (isHtml) { if (!htmlFallback) htmlFallback = htmlToText(body); continue; }
     if (body.trim()) return body;

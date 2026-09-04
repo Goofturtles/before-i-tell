@@ -588,6 +588,42 @@ const { headerBlock } = await import("../inbox.js");
   ok("a declared boundary that never appears yields nothing, not raw MIME",
      extractPlain(broken) === "", JSON.stringify(extractPlain(broken).slice(0, 60)));
 
+  /* REALISTIC header block. Every other fixture here is two lines — From: and
+     Content-Type: — and real mail carries 20-60 headers first. That gap let a
+     live regression ship: unanchored, the Content-Type regex matched the first
+     "content-type:" anywhere in the block, and Microsoft 365's DKIM-Signature
+     h= tag list literally contains "Content-Type:". A plain-text reply from an
+     M365 school (most Ontario boards) therefore returned "" and was consumed.
+     Keep a fixture with real headers above the real Content-Type. */
+  const m365 = [
+    "Received: from YT2PR01MB1234.CANPRD01.PROD.OUTLOOK.COM by mx.google.com",
+    "Authentication-Results: mx.google.com; dkim=pass header.i=@pdsb.net; spf=pass; dmarc=pass",
+    "DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=pdsb.net; s=selector1;",
+    " h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;",
+    " bh=abc123=; b=deadbeef==",
+    "From: Jane Smith <jane.smith@pdsb.net>",
+    'Content-Type: text/plain; charset="utf-8"',
+    "MIME-Version: 1.0", "",
+    "Come to my office Thursday. You are not in trouble.",
+  ].join("\n");
+  ok("a plain reply survives a real M365 header block (DKIM h= names Content-Type)",
+     /office Thursday/.test(extractPlain(m365)), JSON.stringify(extractPlain(m365).slice(0, 60)));
+  ok("X-Original-Content-Type above the real header does not hijack the type",
+     extractPlain("From: c@wrdsb.ca\nX-Original-Content-Type: application/octet-stream\n" +
+                  "Content-Type: text/plain\n\nCome by Thursday.") === "Come by Thursday.");
+
+  /* An attachment is not the reply: Exchange sends the body as HTML and drops
+     an ATT00001.txt beside it, and taking the first text/plain part returned
+     the attachment instead of what the counsellor wrote. */
+  const withAtt = [
+    "From: c@wrdsb.ca", 'Content-Type: multipart/mixed; boundary="B"', "",
+    "--B", "Content-Type: text/html", "", "<p>Come to my office Thursday.</p>",
+    "--B", "Content-Type: text/plain", 'Content-Disposition: attachment; filename="ATT00001.txt"', "",
+    "unrelated attachment text", "--B--", "",
+  ].join("\n");
+  ok("a text attachment does not outrank the counsellor's actual message",
+     /office Thursday/.test(extractPlain(withAtt)), JSON.stringify(extractPlain(withAtt).slice(0, 60)));
+
   // ...and the ordinary shapes must keep working
   ok("a single-part plain reply is unchanged",
      extractPlain("From: c@wrdsb.ca\nContent-Type: text/plain\n\nCome by Thursday.") === "Come by Thursday.");
