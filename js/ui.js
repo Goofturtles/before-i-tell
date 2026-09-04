@@ -152,8 +152,17 @@ export function wireCrisisLink() {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     crisis.setAttribute("tabindex", "-1");
-    crisis.scrollIntoView({ behavior: "instant", block: "start" });
-    crisis.focus({ preventScroll: true });
+    // focus FIRST: it scrolls on its own, so if the scrollIntoView below is
+    // unavailable the jump still happens. "instant" is a newer enum value and
+    // older engines (Chrome <102, Safari <15.4, Firefox <109) THROW on it —
+    // after preventDefault that would leave the crisis link doing nothing at
+    // all. Belt and braces on the one control that must never fail.
+    crisis.focus();
+    try {
+      crisis.scrollIntoView({ behavior: "instant", block: "start" });
+    } catch {
+      crisis.scrollIntoView(true);
+    }
   });
 }
 

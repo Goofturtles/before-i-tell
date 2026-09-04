@@ -369,7 +369,11 @@ function renderResume(saved) {
     reply would arrive silently. Land focus on the thread heading, which now
     states the reply state. */
 function focusThreadTitle() {
-  requestAnimationFrame(() => mount?.querySelector(".thread-title")?.focus({ preventScroll: true }));
+  // no preventScroll: from the bottom of a long thread the heading is off
+  // screen, and focus without a scroll strands a sighted keyboard user.
+  // .thread-title is an h1 inside .app-view, so it inherits the 72px
+  // scroll-margin that clears the sticky nav.
+  requestAnimationFrame(() => mount?.querySelector(".thread-title")?.focus());
 }
 
 async function openThread(tag, pass, onFail) {

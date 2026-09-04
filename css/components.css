@@ -972,13 +972,13 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* toast: confirms a copy without shifting the page */
+/* toast: confirms a copy without shifting the page.
+   z-index and bottom are set once, below — the tier-3 crisis takeover (300)
+   must always win, so this must never be raised above it. */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
   transform: translateX(-50%);
-  z-index: 320;
   max-width: min(92vw, 420px);
   padding: var(--s-3) var(--s-5);
   border-radius: var(--r-pill);
@@ -1092,3 +1092,11 @@ html { scroll-padding-bottom: 120px; }
   margin: 0;
 }
 .thread-title:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
+
+/* Scroll targets must clear the 52px sticky nav.
+   The crisis jump jumped the strip to y=0, i.e. UNDER the nav — "Need someone
+   right now?" was hidden and the number pills half-covered, on the one control
+   that must never be wrong. .answer-card is the Ask focus target's container. */
+.crisis { scroll-margin-top: 72px; }
+/* the Ask focus target is the answer's own heading */
+.answer-card, .answer-card h2 { scroll-margin-top: 72px; }

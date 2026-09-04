@@ -66,14 +66,16 @@ export const ask = {
   _afterAnswer() {
     document.querySelector(".ask-starters")?.remove();
     const heading = this._results?.querySelector("h2");
-    if (heading) {
-      heading.setAttribute("tabindex", "-1");
-      heading.focus({ preventScroll: true });
-    }
-    // behavior:"auto" defers to the CSS scroll-behavior, which is already
-    // gated on prefers-reduced-motion and the page's own motion toggle —
-    // a hardcoded "smooth" would override both
-    this._results?.scrollIntoView({ behavior: "auto", block: "start" });
+    if (!heading) return;
+    heading.setAttribute("tabindex", "-1");
+    // Scroll the SAME element we focus, and do it explicitly: focus() alone
+    // was observed not to scroll at all (leaving the answer 339px above the
+    // viewport), and scrolling the results wrapper instead overshot, because
+    // only the heading carries the scroll-margin that clears the sticky nav.
+    // scrollIntoView honours that margin and the CSS scroll-behavior, which
+    // is already gated on prefers-reduced-motion and the motion toggle.
+    heading.scrollIntoView({ block: "start" });
+    heading.focus({ preventScroll: true });
   },
 
   show(id) {

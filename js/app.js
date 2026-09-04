@@ -52,7 +52,11 @@ function toast(message) {
   document.querySelector(".toast")?.remove();
   // empty region FIRST, text after it is live: a live region created with its
   // children already in place fires no mutation, so it never announces
-  const node = el("div", { class: "toast", role: "status" });
+  // aria-hidden: on the one screen that uses this, the .copy-confirm span is
+  // already a role="status" carrying the same result (and the Ctrl/Cmd-C
+  // fallback wording). Two live regions on one click reads as
+  // "Copied. Link copied." — this one is the VISUAL half only.
+  const node = el("div", { class: "toast", "aria-hidden": "true" });
   document.body.append(node);
   // a timer, not rAF: rAF doesn't fire while the tab isn't compositing, which
   // would leave the toast permanently blank
