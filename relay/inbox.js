@@ -74,8 +74,11 @@ export function unfold(headerText) {
        evil.com — passing SPF/DKIM/DMARC for evil.com, so it lands in the
        inbox normally. If the crafted inner address matched the thread's
        recipient exactly, even the "replied by someone else" note was skipped.
-    2. Take the LAST angle-addr. Per RFC 5322 the addr-spec is the final one;
-       anything before it is display text the sender chose.
+    2. Accept EXACTLY ONE distinct address, or nothing. "Take the last
+       angle-addr" was the first fix here and it is itself a vulnerability:
+       `From:` is a mailbox-LIST in RFC 5322, so
+         From: bot@evil.com, Guidance <guidance@school.ca>
+       is valid, Gmail delivers it, and "the last one" is the school address.
     3. Validate the result is actually an address — exactly one "@", no
        whitespace, non-empty on both sides. Without this, `<@school.ca>` and
        `<x] arbitrary text [y@school.ca>` both parsed to something whose
@@ -547,16 +550,19 @@ export function extractPlain(source) {
 
   let parts = s.split(
     new RegExp("\\n--(?:" + boundaries.map(esc).join("|") + ")(?:--)?[ \\t]*\\n?"));
-  /* INERT, kept deliberately — and it does NOT do what it looks like.
-     It was written as "if the declared split found no text part, try the loose
-     one before giving up", but the trigger is strictly weaker than the loop's
-     accept test below, and removing a whole `\n--…\n` delimiter line cannot
-     create a line start that did not already exist. So whenever this fires,
-     the re-split cannot produce an acceptable part either: the result is ""
-     with or without it. Verified by deleting it — 201/201 either way.
-     Left in place because deleting it is a behaviour change with nothing to
-     gain, but do not trust it to rescue a malformed-boundary message; it
-     won't. Anything that shape returns "" and is counted as emptyBody. */
+  /* Inert for any message whose delimiters are whole lines — which is all
+     well-formed mail. The trigger scans a whole part while the loop's accept
+     test scans only its head, so a part the loop could accept would already
+     have suppressed the trigger; removing a whole `\n--…\n` line cannot create
+     a line start that did not exist. Deleting the branch leaves 201/201.
+
+     NOT inert in general, and an earlier version of this comment wrongly said
+     so. `boundary="([^"]*)"` matches across a newline, so a bare LF inside a
+     quoted boundary makes the delimiter eat a prefix of the following line —
+     the strict split then leaves a part whose head has been chewed, the
+     trigger fires, and the loose split does recover the text. Malformed mail
+     only, and it rescues rather than admits (identity and auth checks are
+     untouched), so the branch stays. Verified both directions by running it. */
   if (!parts.some((p) => /^content-type:\s*text\//im.test(p))) {
     parts = s.split(/\n--[^\n]+\n/);
   }

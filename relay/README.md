@@ -32,9 +32,11 @@ feature is dangerous:
 
 4. **Inbound replies are authenticated.** The thread tag is in the `Reply-To`, so
    anyone the counsellor forwards the email to holds it — the tag alone is not
-   proof of identity. A reply is only filed if its `From:` matches the address
-   this thread writes to, and auto-replies / bounces / out-of-office messages are
-   dropped rather than shown to a child as their counsellor's answer.
+   proof of identity. A reply is only filed if its `From:` is at the same school
+   domain as the address this thread writes to (see **Sender policy** below for
+   the exact bound and its accepted risk), and auto-replies / bounces /
+   out-of-office messages are dropped rather than shown to a child as their
+   counsellor's answer.
 
 Plus: passphrase-gated reads (scrypt-hashed), per-IP and per-recipient rate limits,
 and no name, email, IP or device identifier **belonging to the student** is ever
@@ -77,11 +79,23 @@ Strict exact-matching silently swallowed real answers — aliases, shared
 one. The accepted risk is that a colleague at that school who receives a
 forwarded copy could write into the conversation.
 
+"Same domain" also matches a **subdomain in either direction**, because school
+mail rewrites addresses constantly (a thread to `x@mail.board.ca` answered from
+the Exchange-primary `x@board.ca`). Be aware that widens the bound: a thread to
+`c@tdsb.on.ca` will also accept `someone@student.tdsb.on.ca`, and student
+account namespaces live at exactly that kind of subdomain. A parent domain must
+be registrable, so `@on.ca` or a bare `@ca` cannot match.
+
 That bound rests on the `From:` header, which the sender writes, so treat it
-as a strong filter rather than proof of identity. `addressOf()` takes the last
-angle-address after stripping quoted display names — without that, a message
-genuinely from `evil.com` could put `"Guidance <guidance@board.ca>"` in its
-display name and be filed as the counsellor's reply. `authFailed()` refuses
+as a strong filter rather than proof of identity. `addressOf()` collects every
+address in the header — inside angle brackets and outside — and returns one
+**only if there is exactly one**; otherwise nothing, and the reply is refused.
+Both halves matter, and the obvious rule is the vulnerability: "take the last
+angle-address" was the earlier implementation, and it let
+`From: bot@evil.com, Guidance <guidance@board.ca>` (a valid RFC 5322 mailbox
+*list*, which Gmail delivers) be filed as the counsellor's reply. Quoted
+display names are stripped first, because a display name may legally contain
+angle brackets — `"Guidance <guidance@board.ca>" <attacker@evil.com>`. `authFailed()` refuses
 mail the receiving server positively flagged (`dmarc=fail`, or both SPF and
 DKIM failing); it does *not* require a pass, because demanding one would
 refuse real replies from the many school domains with weak DKIM, and losing a
@@ -267,6 +281,14 @@ counter is where all of these would first show up.
 - **Sender identity rests on the `From:` header.** A school domain publishing
   no DMARC policy can be spoofed by someone who also holds the thread tag. See
   the sender-policy section above — a strong filter, not proof of identity.
+- **A bottom-posted reply keeps its quoted history.** When quote-stripping
+  empties a non-empty body, the raw body is kept instead (losing the reply is
+  worse), so the student may see our boilerplate and their own words echoed
+  back inside a bubble labelled "They wrote:". An accepted trade, not a bug.
+- **The loose-boundary fallback in `extractPlain` is inert for well-formed
+  mail** — it only changes the outcome for a malformed message with a bare
+  newline inside a quoted `boundary=` value, where it rescues text rather than
+  admitting anything. Don't rely on it; don't be surprised by it.
 - **Every inbound test uses hand-built fixtures.** That is exactly what let a
   live regression through: two-line header blocks hid an unanchored regex that
   destroyed plain-text replies from Microsoft 365 schools. There is now one
