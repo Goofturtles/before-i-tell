@@ -1097,20 +1097,33 @@ html { scroll-padding-bottom: 120px; }
    The crisis jump jumped the strip to y=0, i.e. UNDER the nav — "Need someone
    right now?" was hidden and the number pills half-covered, on the one control
    that must never be wrong. .answer-card is the Ask focus target's container. */
-/* --chrome-h is the depth of the fixed chrome a scroll target must clear.
-   52px nav + breathing room by default; safety.js REPLACES it with a measured
-   value while the tier-2 banner is up (it sticks under the nav), so a student
-   in distress doesn't land the crisis numbers behind it. 80px, not 72, also
-   absorbs the 18px .step-enter entrance offset that scrollIntoView measures
-   mid-animation. */
+/* --chrome-h is the depth of the fixed chrome a scroll target must clear:
+   the 53px sticky nav, plus the tier-2 safety banner when it is up (it sticks
+   underneath the nav). 80px, not 72, so the offset also absorbs the 18px
+   .step-enter entrance transform that a scroll can measure mid-animation.
+   Set here in CSS rather than measured in JS: the student who sees that
+   banner is the one most likely to jump to the crisis numbers, and the offset
+   protecting them must not depend on a frame callback or timer firing. */
 :root { --chrome-h: 80px; }
 /* While the tier-2 banner is up it sticks under the nav and roughly doubles
    that chrome. :has() rather than a measured JS value, because the student
    seeing this banner is the one most likely to press "Need help now?" — the
    offset must not depend on a frame callback or timer firing. Browsers
    without :has() keep the 80px floor, which still clears the nav. */
-body:has(.safety-banner) { --chrome-h: 136px; }
-@media (max-width: 560px) { body:has(.safety-banner) { --chrome-h: 176px; } } /* banner wraps */
-.crisis { scroll-margin-top: var(--chrome-h); }
+/* Measured banner heights: 54px at >=1024, 83px at 560-768, 112px at 430,
+   133px at <=375 (the text wraps further as the viewport narrows). These
+   values clear nav + banner at every width with a little headroom. The crisis
+   jump does NOT rely on them — ui.js measures the real chrome at click time,
+   because that one target must be exact. */
+body:has(.safety-banner) { --chrome-h: 160px; }
+/* 878px, not a round breakpoint: that is where the banner text wraps to a
+   second line (54px -> 83px). Below it the wrapping keeps growing, to 133px
+   by 375px, so this value carries the widest case. */
+@media (max-width: 878px) { body:has(.safety-banner) { --chrome-h: 200px; } }
+/* .crisis[id], not .crisis: base.css's `[id] { scroll-margin-top: 64px }` has
+   equal specificity, so a plain class would win only by stylesheet order —
+   reordering the <link>s would silently drop the no-JS #crisis anchor back to
+   64px and tuck the numbers under the nav. */
+.crisis[id] { scroll-margin-top: var(--chrome-h); }
 /* the Ask focus target is the answer's own heading */
 .answer-card h2 { scroll-margin-top: var(--chrome-h); }

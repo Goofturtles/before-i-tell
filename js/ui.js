@@ -152,24 +152,27 @@ export function wireCrisisLink() {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     crisis.setAttribute("tabindex", "-1");
-    // focus FIRST: it scrolls on its own, so if the scrollIntoView below is
-    // unavailable the jump still happens. "instant" is a newer enum value and
-    // older engines (Chrome <102, Safari <15.4, Firefox <109) THROW on it —
-    // after preventDefault that would leave the crisis link doing nothing at
-    // all. Belt and braces on the one control that must never fail.
-    crisis.focus();
-    try {
-      crisis.scrollIntoView({ behavior: "instant", block: "start" });
-    } catch {
-      // legacy path: scrollIntoView(true) resolves behavior:auto, which would
-      // pick up the page's CSS `scroll-behavior: smooth` — the one thing this
-      // handler must never do. Force it off for the jump, then restore.
-      const root = document.documentElement;
-      const prev = root.style.scrollBehavior;
-      root.style.scrollBehavior = "auto";
-      crisis.scrollIntoView(true);
-      root.style.scrollBehavior = prev;
-    }
+    crisis.focus({ preventScroll: true });
+
+    /* Measure the sticky chrome NOW rather than trusting a CSS offset. The
+       tier-2 banner sits under the nav and its height depends on how the text
+       wraps — 54px on a desktop, 133px at 375px — so no fixed scroll-margin
+       covers every width, and the student who sees that banner is exactly the
+       one pressing this link. At click time the real heights are knowable.
+
+       scrollTo(x, y) rather than scrollIntoView({behavior}): the options-object
+       enum throws on older engines, while this two-arg form exists everywhere.
+       scroll-behavior is forced off around it because CSS smooth would
+       otherwise animate the one jump that must be instant. */
+    const stuck = [$(".nav"), $(".safety-banner")]
+      .filter(Boolean)
+      .reduce((h, n) => h + n.getBoundingClientRect().height, 0);
+    const y = crisis.getBoundingClientRect().top + window.scrollY - stuck - 12;
+    const root = document.documentElement;
+    const prev = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, Math.max(0, y));
+    root.style.scrollBehavior = prev;
   });
 }
 

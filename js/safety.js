@@ -301,23 +301,24 @@ export function quickExit() {
 function renderBanner() {
   if ($(".safety-banner")) return;
   if ((store.session.get("s")?.tier || 0) < 2) return;
-  // insert the live region EMPTY, fill next frame — dynamically added live
-  // regions with initial content are often not announced by screen readers
+  // insert the live region EMPTY and fill it a tick later — a live region that
+  // already has its content when appended is often not announced at all
   const banner = el("div", { class: "safety-banner", role: "status" });
   const nav = $(".nav");
   if (nav && nav.parentNode) nav.parentNode.insertBefore(banner, nav.nextSibling);
   else document.body.prepend(banner);
-  /* This banner sticks UNDER the nav, so it deepens the chrome that scroll
-     targets must clear — see `body:has(.safety-banner)` in components.css,
-     which handles that declaratively. Deliberately NOT measured in JS here:
-     the obvious implementation depends on rAF or a timer firing, and if it
-     misses, a distressed student's crisis jump lands behind this very banner.
-     CSS can't miss. */
-  requestAnimationFrame(() => {
+  /* A TIMER, not requestAnimationFrame. rAF does not fire while the tab isn't
+     compositing, and this content is the crisis phone numbers: a missed frame
+     leaves a distressed student staring at an empty coloured bar, with the
+     live region announcing nothing. Observed happening in a hidden tab.
+     (The scroll offset this banner forces is handled declaratively by
+     `body:has(.safety-banner)` in components.css, for the same reason — the
+     one thing protecting this student must not depend on a callback.) */
+  setTimeout(() => {
     banner.append(
       el("span", {}, "Whatever is going on, you don't have to figure it out alone. "),
       el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone 1-800-668-6868"),
       el("span", {}, " · "),
       el("a", { href: "sms:686868?&body=CONNECT" }, "text CONNECT to 686868"));
-  });
+  }, 50);
 }

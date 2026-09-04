@@ -375,8 +375,8 @@ function focusThreadTitle() {
   // that move is the ONLY way a screen-reader user learns a reply arrived.
   // No preventScroll: from the bottom of a long thread the heading is off
   // screen, and focusing without scrolling strands a sighted keyboard user.
-  // .thread-title is an h1 inside .app-view, so it inherits the 72px
-  // scroll-margin that clears the sticky nav.
+  // .thread-title is an h1 inside .app-view, so it inherits that rule's
+  // --chrome-h scroll-margin, which clears the nav (and the tier-2 banner).
   mount?.querySelector(".thread-title")?.focus();
 }
 
