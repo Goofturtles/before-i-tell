@@ -102,12 +102,6 @@ export const safety = {
     return !!store.session.get("s")?.dismissed;
   },
 
-  /** attach guards to a free-text input.
-      After an explicit "I'm safe" dismissal this session, T3 re-detection does
-      NOT re-open the takeover from typing — the banner stays, and Ask submits
-      proceed so the relevant corpus answer (e.g. suicide-self-harm) can help.
-      This prevents the permanent-lock failure where the person who most needs
-      the "what happens if I say I'm suicidal" answer can never ask it. */
   /** internal: run check, remember T3 families for the honest-note branch.
       The family category (a category flag, never text) persists in session so
       a refresh re-asserts the RIGHT honest note — an abused student must not
@@ -122,6 +116,12 @@ export const safety = {
     return result;
   },
 
+  /** attach guards to a free-text input.
+      After an explicit "I'm safe" dismissal this session, T3 re-detection does
+      NOT re-open the takeover from typing — the banner stays, and Ask submits
+      proceed so the relevant corpus answer (e.g. suicide-self-harm) can help.
+      This prevents the permanent-lock failure where the person who most needs
+      the "what happens if I say I'm suicidal" answer can never ask it. */
   guard(inputEl) {
     let timer = 0;
     inputEl.addEventListener("input", () => {
@@ -140,8 +140,8 @@ export const safety = {
     });
   },
 
-  /** submit-time check; returns true when the caller may proceed */
-  /** @param restoreTo where to send focus when the takeover is dismissed.
+  /** submit-time check; returns true when the caller may proceed.
+      @param restoreTo where to send focus when the takeover is dismissed.
       Without it the student lands on the Send button they just pressed rather
       than the words they wrote — and this is the COMMON crisis path, since
       the client check runs before the relay's. */
