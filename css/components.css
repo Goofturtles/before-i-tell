@@ -784,3 +784,354 @@
   max-height: 340px;
   overflow-y: auto;
 }
+
+/* ============================================================
+   v2 — patterns studied from shipped products (Mobbin research):
+   · thin step progress + sticky action bar  (MyFitnessPal, Whatnot, Nibble)
+   · option rows with the control on the RIGHT (Too Good To Go, MyFitnessPal)
+   · answer sources + "ask next" rows (Perplexity/Comet, Opera, Mindvalley)
+   · real chat bubbles + thread status (Binance, Coffee Meets Bagel)
+   · success screen with copy AND native share (Wise, Commons)
+   · crisis help grouped into labelled rows with call targets (How We Feel, Alan)
+   ============================================================ */
+
+/* --- step progress: a thin bar, not counting dots --- */
+.wizard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+}
+.wizard__track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  overflow: hidden;
+}
+.wizard__fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  transition: width 0.45s var(--ease-apple-out);
+}
+.wizard__count {
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: var(--c-text-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* --- sticky action bar: the primary action is always in reach --- */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+  margin: var(--s-7) calc(-1 * var(--s-4)) 0;
+  padding: var(--s-4);
+  background: var(--nav-bg-scrolled);
+  border-top: 1px solid var(--c-hairline);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+}
+.action-bar .btn { min-height: 48px; }
+.action-bar__grow { flex: 1; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .action-bar { background: var(--c-bg); }
+}
+
+/* --- option rows: full-width, control on the right, whole row is the target --- */
+.term {
+  align-items: center;
+  gap: var(--s-4);
+  min-height: 60px;
+  transition: border-color 0.18s var(--ease-apple-standard),
+              background 0.18s var(--ease-apple-standard);
+}
+.term > div { order: 1; flex: 1; }
+.term input[type="checkbox"] { order: 2; flex: 0 0 auto; margin: 0; }
+.term:hover:not(.term--locked) { border-color: var(--c-border-strong); }
+.term--locked { align-items: flex-start; }
+.term--locked .lock-icon { order: 0; }
+
+/* --- crisis: grouped rows with an explicit call target --- */
+.help-group { margin-bottom: var(--s-5); }
+.help-group__label {
+  display: block;
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-text-2);
+  margin-bottom: var(--s-2);
+  line-height: 1.4;
+}
+.help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-2);
+  border: 1px solid var(--c-divider);
+  border-radius: var(--r-input);
+  background: var(--c-bg-page);
+  color: var(--c-text);
+  text-decoration: none;
+  min-height: 56px;
+  line-height: 1.45;
+  transition: border-color 0.18s var(--ease-apple-standard);
+}
+.help-row:hover { border-color: var(--c-text); text-decoration: none; }
+.help-row b { display: block; font-weight: 600; line-height: 1.4; }
+.help-row span { display: block; font-size: var(--t-body-sm); color: var(--c-text-2); line-height: 1.45; }
+.help-row__go {
+  flex: 0 0 auto;
+  font-size: var(--t-body-sm);
+  font-weight: 700;
+  color: var(--c-accent-deep);
+  border: 1px solid currentColor;
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  line-height: 1.5;
+}
+.help-note {
+  font-size: var(--t-body-sm);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  background: var(--c-safe-soft);
+  border-radius: var(--r-input);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+/* --- ask: suggestions as tappable rows, not loose chips --- */
+.suggest-label {
+  display: block;
+  font-size: var(--t-body-sm);
+  font-weight: 600;
+  color: var(--c-text-2);
+  margin: var(--s-5) 0 var(--s-2);
+  line-height: 1.5;
+}
+.suggest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-2);
+  min-height: 52px;
+  border: 1px solid var(--c-divider);
+  border-radius: var(--r-input);
+  background: var(--c-bg-page);
+  color: var(--c-text);
+  font: inherit;
+  font-size: var(--t-body);
+  line-height: 1.45;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease-apple-standard),
+              transform 0.18s var(--ease-apple-spring);
+}
+.suggest-row:hover { border-color: var(--c-text); transform: translateX(2px); }
+.suggest-row::after {
+  content: "\2192";
+  flex: 0 0 auto;
+  color: var(--c-text-3);
+  font-size: var(--t-body-lg);
+  line-height: 1.4;
+}
+
+/* --- chat thread (L2) --- */
+.thread-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-bottom: var(--s-4);
+  margin-bottom: var(--s-4);
+  border-bottom: 1px solid var(--c-hairline);
+}
+.thread-avatar {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--lv2);
+  border: 1.5px solid var(--ink-line);
+  font-weight: 700;
+  font-size: var(--t-body-sm);
+  color: var(--c-text);
+  line-height: 1.4;
+}
+.thread-head__who { flex: 1; min-width: 0; }
+.thread-head__who b { display: block; font-size: var(--t-body-lg); font-weight: 700; line-height: 1.3; }
+.thread-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-body-sm);
+  color: var(--c-text-2);
+  line-height: 1.45;
+}
+.thread-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-text-3);
+}
+.thread-status--replied { color: var(--c-safe); }
+.thread-status--replied::before { background: var(--c-safe); }
+
+.msg-system {
+  text-align: center;
+  font-size: var(--t-body-sm);
+  line-height: 1.55;
+  color: var(--c-text-2);
+  background: var(--c-surface);
+  border-radius: var(--r-input);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-5);
+}
+.msg-list { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-5); }
+.msg { display: flex; flex-direction: column; max-width: 82%; }
+.msg--you { align-self: flex-end; align-items: flex-end; }
+.msg--them { align-self: flex-start; align-items: flex-start; }
+.msg__bubble {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-card);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  border: 1.5px solid var(--ink-line);
+}
+.msg--you .msg__bubble {
+  background: var(--lv3-soft);
+  border-bottom-right-radius: var(--s-2);
+}
+.msg--them .msg__bubble {
+  background: var(--c-bg-page);
+  border-bottom-left-radius: var(--s-2);
+  box-shadow: var(--pop-sm);
+}
+.msg__meta {
+  font-size: var(--t-caption);
+  color: var(--c-text-3);
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
+/* --- success (L3 done) --- */
+.success-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--c-safe-soft);
+  border: 2px solid var(--c-safe);
+  color: var(--c-safe);
+}
+.success-mark svg { width: 36px; height: 36px; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.motion-off) .success-mark { animation: pop-in 0.5s var(--ease-apple-spring) both; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* toast: confirms a copy without shifting the page */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 320;
+  max-width: min(92vw, 420px);
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--c-text);
+  color: var(--c-bg);
+  font-size: var(--t-body-sm);
+  font-weight: 600;
+  line-height: 1.5;
+  box-shadow: var(--panel-shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.motion-off) .toast { animation: toast-in 0.35s var(--ease-apple-out) both; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* --- mobile: give the thumb room --- */
+@media (max-width: 620px) {
+  .action-bar { margin-left: calc(-1 * var(--s-3)); margin-right: calc(-1 * var(--s-3)); }
+  .action-bar .btn { flex: 1; justify-content: center; }
+  .msg { max-width: 90%; }
+}
+
+/* --- crisis strip: real tap targets ---
+   The numbers were inline underlined text — a ~20px tall target for someone
+   with shaking hands. Pills give a 44px row without changing the calm tone. */
+.crisis__inner a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--c-divider);
+  border-radius: var(--r-pill);
+  background: var(--c-bg-page);
+  text-decoration: none;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.crisis__inner a:hover {
+  border-color: var(--c-crisis-edge);
+  text-decoration: none;
+}
+.crisis__inner { align-items: center; }
+
+/* the in-app crisis link: quiet until you need it, never a decoration */
+.nav__crisis {
+  color: var(--c-crisis-edge) !important;
+  font-weight: 600;
+}
+
+/* the starter list disappears once an answer lands, so give it breathing room */
+.ask-starters { margin-top: var(--s-6); }
+
+/* action-bar buttons must not wrap: "Send reply" broke onto two lines and the
+   button grew into a square. Nowrap + tighter mobile padding keeps one line. */
+.action-bar .btn { white-space: nowrap; }
+@media (max-width: 420px) {
+  .action-bar { gap: var(--s-2); padding: var(--s-3); }
+  .action-bar .btn { padding-left: var(--s-3); padding-right: var(--s-3); font-size: var(--t-body-sm); }
+}
+/* the bar is the last thing on the page; the chrome row above it already
+   carries the separation, so drop its own big top margin on small screens */
+@media (max-width: 620px) {
+  .action-bar { margin-top: var(--s-5); }
+}
+
+/* Tap targets on the terms list.
+   The checkbox was 22px (under WCAG 2.5.8's 24px floor) and the label only
+   covered its own text, so the empty half of a 60px row did nothing when
+   tapped. Block label + 24px box makes the whole row the target. */
+.term input[type="checkbox"] { width: 24px; height: 24px; }
+.term label { display: block; padding: var(--s-2) 0; }
+.term--locked > div > span:first-child { display: block; }

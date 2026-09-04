@@ -34,6 +34,14 @@ const REFUSALS = {
 
 let mount = null;
 
+/** Append into the mount, dropping conditional nulls.
+    The el() helper filters null children, but native append() STRINGIFIES
+    them — a `cond ? null : node` argument printed a literal "null" on screen
+    (it was doing exactly that on the live L2 intro, where the relay is on). */
+function add(...children) {
+  mount.append(...children.flat(Infinity).filter((c) => c != null && c !== false));
+}
+
 function state() {
   return store.get("cn") || {};
 }
@@ -144,7 +152,7 @@ function crisisFork(status, { raise = true, fam } = {}) {
 function renderIntro() {
   const saved = state();
   clearNode(mount);
-  mount.append(
+  add(
     el("div", { class: "step-head" },
       el("p", { class: "eyebrow" }, RELAY_ENABLED ? "Level 2 · Codename" : "Level 2 · Codename — preview"),
       el("h1", {}, "Talk first. Your name stays yours."),
@@ -228,7 +236,7 @@ function renderCompose() {
     refusalNote(status, res.reason);
   });
 
-  mount.append(
+  add(
     el("div", { class: "step-head" },
       el("p", { class: "eyebrow" }, "Level 2 · Your first message"),
       el("h1", {}, "Say as much or as little as you want."),
@@ -258,7 +266,7 @@ function renderCreated(res) {
     saveState({ pass: remember.checked ? res.pass : undefined });
   });
 
-  mount.append(
+  add(
     el("div", { class: "step-head" },
       el("p", { class: "eyebrow" }, "Level 2 · Sent"),
       el("h1", {}, "Sent. You're ", el("span", { class: "hl-pill" }, res.codename), "."),
@@ -339,7 +347,7 @@ function renderResume(saved) {
     status.append(note(REFUSALS[res.reason] || "Couldn't open that conversation."));
   });
 
-  mount.append(
+  add(
     el("div", { class: "step-head" },
       el("p", { class: "eyebrow" }, "Level 2 · Come back"),
       el("h1", {}, "Pick up where you left off."),
@@ -398,37 +406,67 @@ function renderThread(thread, pass) {
     status.append(note(REFUSALS[res.reason] || "Couldn't send that."));
   });
 
-  const bubbles = thread.messages.map((m) =>
-    el("div", { class: m.from === "adult" ? "request-card" : "words-card", style: "margin-bottom:12px" },
-      el("span", { class: "ladder__level", style: "display:block;margin-bottom:6px" },
-        m.from === "adult" ? "Them" : "You"),
-      m.body));
+  /* A conversation should look like one. Position and colour carry who said
+     what, so each message no longer needs a "You"/"Them" label stacked on top
+     — the label survives for screen readers, which get no position cue. */
+  const when = (at) => {
+    const d = new Date(at);
+    return at && !isNaN(d)
+      ? d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+      : "";
+  };
 
-  mount.append(
-    el("div", { class: "step-head" },
-      el("p", { class: "eyebrow" }, "Level 2 · " + thread.codename),
-      el("h1", {}, thread.adultReplied ? "They wrote back." : "Waiting for a reply."),
-      el("p", { class: "lead" },
-        thread.adultReplied
-          ? "Read it whenever you're ready. You can answer, or not."
-          : "Nothing yet. Counsellors are usually teaching or in meetings — a day is normal."),
-      thread.adultReplied ? null : el("p", { class: "small muted", style: "margin-top:8px" },
-        "If a few school days pass with nothing, don't assume you were read and ignored — school email filters sometimes hold mail from senders they don't recognize, so the adult may never have seen it. ",
-        el("a", { href: "#/tell" }, "Level 3"),
-        " (no email at all), or a fresh message to a different adult, gets around a filter.")),
-    el("div", {}, bubbles),
-    el("div", { class: "slot", style: "margin-top:24px" },
-      el("label", { for: "cn-reply" }, "Your reply"),
-      replyBox),
-    status,
-    el("div", { class: "btn-row" },
-      replyBtn,
+  const bubbles = el("div", { class: "msg-list" },
+    thread.messages.map((m) => {
+      const mine = m.from !== "adult";
+      return el("div", { class: `msg ${mine ? "msg--you" : "msg--them"}` },
+        el("div", { class: "msg__bubble" },
+          el("span", { class: "vh" }, mine ? "You wrote: " : "They wrote: "),
+          m.body),
+        el("span", { class: "msg__meta" }, when(m.at)));
+    }));
+
+  /* initials from the codename ("Quiet Willow 72" → "QW"): an avatar that
+     says who you are in here without touching a real identity */
+  const initials = String(thread.codename || "")
+    .split(/\s+/).filter((w) => /^[A-Za-z]/.test(w)).slice(0, 2)
+    .map((w) => w[0].toUpperCase()).join("") || "?";
+
+  add(
+    el("div", { class: "thread-head" },
+      el("span", { class: "thread-avatar", "aria-hidden": "true" }, initials),
+      el("div", { class: "thread-head__who" },
+        el("b", {}, thread.codename),
+        el("span", { class: "thread-status" + (thread.adultReplied ? " thread-status--replied" : "") },
+          thread.adultReplied ? "They replied" : "Waiting for a reply")),
       el("button", {
-        class: "btn btn--secondary", type: "button",
+        class: "btn btn--quiet", type: "button",
         onclick: () => openThread(thread.tag, pass, () => {
           status.append(note("Couldn't refresh just now. Try again in a minute — nothing was lost."));
         }),
-      }, "Refresh"),
+      }, "Refresh")),
+
+    el("p", { class: "msg-system" },
+      thread.adultReplied
+        ? `They know you only as ${thread.codename}. Read it whenever you're ready — you can answer, or not.`
+        : `Sent. They know you only as ${thread.codename}. Counsellors are usually teaching or in meetings, so a day is normal.`),
+
+    bubbles,
+
+    thread.adultReplied ? null : el("p", { class: "small muted", style: "margin-bottom:24px" },
+      "If a few school days pass with nothing, don't assume you were read and ignored — school email filters sometimes hold mail from senders they don't recognize, so the adult may never have seen it. ",
+      el("a", { href: "#/tell" }, "Level 3"),
+      " (no email at all), or a fresh message to a different adult, gets around a filter."),
+
+    el("div", { class: "slot" },
+      el("label", { for: "cn-reply" }, "Your reply"),
+      replyBox),
+    status,
+    // send sits with the composer, the way every messaging app puts it — a
+    // separate sticky bar would also land after this screen's chrome row and
+    // so could never actually stick
+    el("div", { class: "btn-row" },
+      replyBtn,
       el("a", { class: "btn btn--ghost", href: "#/" }, "Back")));
 }
 

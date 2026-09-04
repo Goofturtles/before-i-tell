@@ -29,10 +29,31 @@ function chromeRow() {
     }, "Delete everything I've entered"));
 }
 
-function dots(step, total) {
-  const row = el("div", { class: "dots", role: "img", "aria-label": `Step ${step} of ${total}` });
-  for (let i = 1; i <= total; i++) row.append(el("i", { class: i <= step ? "on" : "" }));
-  return row;
+/** Thin progress bar + "step N of M" — replaces counting dots, which stop
+    being readable past three steps. */
+function wizard(step, total) {
+  return el("div", { class: "wizard" },
+    el("div", {
+      class: "wizard__track", role: "progressbar",
+      "aria-valuenow": String(step), "aria-valuemin": "1", "aria-valuemax": String(total),
+      "aria-label": `Step ${step} of ${total}`,
+    }, el("div", { class: "wizard__fill", style: `width:${(step / total) * 100}%` })),
+    el("span", { class: "wizard__count" }, `Step ${step} of ${total}`));
+}
+
+/** Sticky bottom bar so the primary action is always in reach on a phone —
+    the L3 forms are long enough that a page-bottom button meant scrolling. */
+function actionBar(...children) {
+  return el("div", { class: "action-bar" }, children);
+}
+
+/** Brief confirmation that doesn't shift layout (a growing inline message
+    pushed the copy button out from under the user's finger). */
+function toast(message) {
+  document.querySelector(".toast")?.remove();
+  const node = el("div", { class: "toast", role: "status" }, message);
+  document.body.append(node);
+  setTimeout(() => node.remove(), 2600);
 }
 
 function storageBanner() {
@@ -163,7 +184,7 @@ const render = {
     clearNode(view);
     view.append(
       el("div", { class: "step-enter" },
-        dots(1, 4),
+        wizard(1, 4),
         el("div", { class: "step-head" },
           el("p", { class: "eyebrow" }, "Level 3 · Tell"),
           el("h1", {}, "The conversation happens on your terms."),
@@ -172,10 +193,11 @@ const render = {
           el("div", { class: "answer-body" },
             el("p", {}, el("b", {}, "Two things can't be turned off"), " — and we show them up front, because an honest adult would too: if you're not safe, or another kid isn't, the adult has to involve people who can protect you. Everything else is yours to decide."),
             el("p", {}, el("b", {}, "What the adult receives:"), " only your requests — never what you're going to tell them. Your words stay with you; you say them out loud, in person, when you're ready."))),
-        el("div", { class: "btn-row" },
+        chromeRow(),
+        actionBar(
           el("a", { class: "btn btn--secondary", href: "#/" }, "Back"),
-          el("a", { class: "btn btn--primary", href: "#/tell/terms" }, "Set my terms")),
-        chromeRow()));
+          el("span", { class: "action-bar__grow" }),
+          el("a", { class: "btn btn--primary", href: "#/tell/terms" }, "Set my terms"))));
   },
 
   tellTerms() {
@@ -243,19 +265,21 @@ const render = {
 
     view.append(
       el("div", { class: "step-enter" },
-        dots(2, 4),
+        wizard(2, 4),
         el("div", { class: "step-head" },
           el("p", { class: "eyebrow" }, "Level 3 · Your terms"),
           el("h1", {}, "Set the rules."),
-          el("p", { class: "lead" }, "Nobody has ever laid this out for you, so here it is: what's fixed, and what's completely yours.")),
+          el("p", { class: "lead" }, "Nobody has ever laid this out for you, so here it is: what's fixed, and what's completely yours."),
+          el("p", { class: "caption", style: "margin-top:12px" }, "Tick everything you want. Nothing is required — and you can change any of it later.")),
         storageBanner(),
         lockedGroup,
         negotiableGroup,
-        el("div", { class: "btn-row" },
+        chromeRow(),
+        actionBar(
           el("a", { class: "btn btn--secondary", href: "#/tell" }, "Back"),
-          el("a", { class: "btn btn--primary", href: "#/tell/words" }, "Next: my words"),
-          el("a", { class: "btn btn--ghost", href: "#/tell/review" }, "Skip words")),
-        chromeRow()));
+          el("a", { class: "btn btn--ghost", href: "#/tell/review" }, "Skip words"),
+          el("span", { class: "action-bar__grow" }),
+          el("a", { class: "btn btn--primary", href: "#/tell/words" }, "Next: my words"))));
   },
 
   tellWords() {
@@ -293,7 +317,7 @@ const render = {
 
     view.append(
       el("div", { class: "step-enter" },
-        dots(3, 4),
+        wizard(3, 4),
         el("div", { class: "step-head" },
           el("p", { class: "eyebrow" }, "Level 3 · Your words — optional"),
           el("h1", {}, "Find the first sentence."),
@@ -329,10 +353,11 @@ const render = {
             id: "slot-closing",
             onchange: (e) => { values.closing = e.target.value; scaffold.save(values); },
           }, CLOSINGS.map((c) => el("option", { value: c, selected: values.closing === c }, c)))),
-        el("div", { class: "btn-row" },
+        chromeRow(),
+        actionBar(
           el("a", { class: "btn btn--secondary", href: "#/tell/terms" }, "Back"),
-          el("a", { class: "btn btn--primary", href: "#/tell/review" }, "Review everything")),
-        chromeRow()));
+          el("span", { class: "action-bar__grow" }),
+          el("a", { class: "btn btn--primary", href: "#/tell/review" }, "Review everything"))));
   },
 
   tellReview() {
@@ -368,7 +393,7 @@ const render = {
 
     view.append(
       el("div", { class: "step-enter" },
-        dots(4, 4),
+        wizard(4, 4),
         el("div", { class: "step-head" },
           el("p", { class: "eyebrow" }, "Level 3 · Review"),
           el("h1", {}, "Here's your plan."),
@@ -401,10 +426,11 @@ const render = {
             id: "review-role",
             onchange: (e) => { selection.role = e.target.value; terms.save(selection); },
           }, ADULT_ROLES.map((r) => el("option", { value: r, selected: selection.role === r }, r)))),
-        el("div", { class: "btn-row" },
+        chromeRow(),
+        actionBar(
           el("a", { class: "btn btn--secondary", href: "#/tell/words" }, "Back"),
-          el("a", { class: "btn btn--primary btn--lg", href: "#/tell/link" }, "Create the adult's page")),
-        chromeRow()));
+          el("span", { class: "action-bar__grow" }),
+          el("a", { class: "btn btn--primary", href: "#/tell/link" }, "Create the adult's page"))));
   },
 
   tellLink() {
@@ -418,6 +444,12 @@ const render = {
 
     view.append(
       el("div", { class: "step-enter" },
+        // a real completion moment: the last screen of the hardest flow in
+        // the app shouldn't look identical to every step before it
+        el("div", { class: "success-mark", "aria-hidden": "true" },
+          el("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
+                      "stroke-width": "2.5", "stroke-linecap": "round", "stroke-linejoin": "round" },
+            el("path", { d: "M20 6 9 17l-5-5" }))),
         el("div", { class: "step-head" },
           el("p", { class: "eyebrow" }, "Level 3 · Done"),
           el("h1", {}, "Done. That took guts."),
@@ -429,14 +461,20 @@ const render = {
             onclick: async () => {
               const ok = await copyText(url, urlInput);
               confirm.textContent = ok ? "Copied." : "Press Ctrl/Cmd-C to copy.";
+              toast(ok ? "Link copied." : "Select it and press Ctrl/Cmd-C.");
             },
           }, "Copy"),
           // the OS share sheet, where it exists — on a phone, copy-paste is
-          // the clumsy path. No request leaves; the sheet IS the OS.
+          // the clumsy path. No request leaves; the sheet IS the OS. The text
+          // gives the student the opening line, so they don't have to write one.
           navigator.share
             ? el("button", {
                 class: "btn btn--secondary", type: "button",
-                onclick: () => navigator.share({ url }).catch(() => { /* cancelled */ }),
+                onclick: () => navigator.share({
+                  title: "Before I Tell — for the adult",
+                  text: "Before I tell you something, please read this.",
+                  url,
+                }).catch(() => { /* cancelled */ }),
               }, "Share")
             : null),
         confirm,
@@ -444,10 +482,11 @@ const render = {
           el("div", { class: "answer-body" },
             el("p", {}, el("b", {}, "Honest fine print:"), " this link is encoded, not encrypted — anyone who has it can open it. That's why it holds your requests, never your story. Send it somewhere you trust, and remember it may sit in chat logs or browser history."),
             el("p", {}, el("b", {}, "When to send it:"), " right before you talk works best — \"Before I tell you something, please open this.\" It does the bravest part of the opening for you."))),
-        el("div", { class: "btn-row" },
+        chromeRow(),
+        actionBar(
           el("a", { class: "btn btn--secondary", href: "#/tell/review" }, "Back"),
-          el("a", { class: "btn btn--ghost", href: url, target: "_blank", rel: "noopener" }, "Preview what they'll see")),
-        chromeRow()));
+          el("span", { class: "action-bar__grow" }),
+          el("a", { class: "btn btn--ghost", href: url, target: "_blank", rel: "noopener" }, "Preview what they'll see"))));
   },
 };
 

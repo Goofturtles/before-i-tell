@@ -59,6 +59,9 @@
         <a href="index.html">About</a>
         <a href="app.html" aria-current="page">Start</a>
         <a href="adult.html">For adults</a>
+        <!-- crisis access from inside the app, not just the landing page: the
+             person most likely to need it is mid-flow, not reading the About -->
+        <a href="#crisis" class="nav__crisis">Need help now?</a>
         <button class="theme-toggle motion-toggle" type="button" aria-pressed="false" aria-label="Pause animations">
           <svg class="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
           <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M7 4.5 L19 12 L7 19.5 Z"/></svg>
@@ -86,7 +89,7 @@
     </div>
   </main>
 
-  <aside class="crisis" aria-label="Crisis support">
+  <aside class="crisis" id="crisis" aria-label="Crisis support">
     <div class="crisis__inner">
       <span class="crisis__label">Need someone right now?</span>
       <a href="tel:1-800-668-6868">Kids Help Phone 1-800-668-6868</a>

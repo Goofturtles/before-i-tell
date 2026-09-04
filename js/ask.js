@@ -24,13 +24,13 @@ function renderAnswer(container, entry) {
           el("a", { class: "cite-chip", href: c.url, target: "_blank", rel: "noopener noreferrer" }, c.label))),
       entry.related?.length
         ? el("div", {},
-            el("p", { class: "small muted", style: "margin:16px 0 0" }, "Related:"),
-            el("div", { class: "topic-chips" },
-              entry.related
-                .map((id) => retrieval.byId(id))
-                .filter(Boolean)
-                .map((rel) =>
-                  el("button", { class: "topic-chip", type: "button", onclick: () => ask.show(rel.id) }, rel.q[0]))))
+            el("span", { class: "suggest-label" }, "People usually ask next"),
+            entry.related
+              .map((id) => retrieval.byId(id))
+              .filter(Boolean)
+              .map((rel) =>
+                el("button", { class: "suggest-row", type: "button", onclick: () => ask.show(rel.id) },
+                  el("span", {}, rel.q[0]))))
         : null));
 }
 
@@ -47,19 +47,30 @@ function renderRefusal(container, alternates) {
           el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone, 1-800-668-6868"),
           " or text CONNECT to 686868.")),
       el("div", {},
-        el("p", { class: "small muted", style: "margin:16px 0 0" },
-          alternates.length ? "Were you asking about one of these?" : "Things I can answer:"),
-        el("div", { class: "topic-chips" },
-          suggestions.map((a) =>
-            el("button", { class: "topic-chip", type: "button", onclick: () => ask.show(a.id) }, a.q[0]))))));
+        el("span", { class: "suggest-label" },
+          alternates.length ? "Were you asking about one of these?" : "Things I can answer"),
+        suggestions.map((a) =>
+          el("button", { class: "suggest-row", type: "button", onclick: () => ask.show(a.id) },
+            el("span", {}, a.q[0]))))));
 }
 
 export const ask = {
   _results: null,
 
+  /** Once an answer is on screen the starter list is noise — the answer's own
+      "ask next" rows take over. Also bring the answer into view: on a phone
+      the results region sits below the fold. */
+  _afterAnswer() {
+    document.querySelector(".ask-starters")?.remove();
+    this._results?.scrollIntoView({ behavior: "smooth", block: "start" });
+  },
+
   show(id) {
     const entry = retrieval.byId(id);
-    if (entry && this._results) renderAnswer(this._results, entry);
+    if (entry && this._results) {
+      renderAnswer(this._results, entry);
+      this._afterAnswer();
+    }
   },
 
   render(view) {
@@ -85,6 +96,7 @@ export const ask = {
       const { entry, alternates } = retrieval.answer(q);
       if (entry) renderAnswer(results, entry);
       else renderRefusal(results, alternates);
+      this._afterAnswer();
       // anonymity kept literally: the question is not stored, and we clear it
       input.value = "";
     };
@@ -99,13 +111,15 @@ export const ask = {
         el("button", { class: "btn btn--primary", type: "submit" }, "Ask")),
       el("p", { class: "jurisdiction" }, "These rules are for Ontario schools. Other provinces and countries differ."),
       results,
-      el("div", {},
-        el("p", { class: "small muted", style: "margin-top:32px" }, "Common questions:"),
-        el("div", { class: "topic-chips" },
-          ["tell-parents", "what-must-report", "believed-proof", "taken-away", "coming-out", "drugs-alcohol", "change-mind", "records", "hypothetical", "how-to-start"]
-            .map((id) => retrieval.byId(id))
-            .filter(Boolean)
-            .map((entry) =>
-              el("button", { class: "topic-chip", type: "button", onclick: () => this.show(entry.id) }, entry.q[0])))));
+      // the starting state does the work of the empty screen: real questions,
+      // tappable, in the order a scared person actually asks them
+      el("div", { class: "ask-starters" },
+        el("span", { class: "suggest-label" }, "Common questions"),
+        ["tell-parents", "what-must-report", "believed-proof", "taken-away", "coming-out", "drugs-alcohol", "change-mind", "records", "hypothetical", "how-to-start"]
+          .map((id) => retrieval.byId(id))
+          .filter(Boolean)
+          .map((entry) =>
+            el("button", { class: "suggest-row", type: "button", onclick: () => this.show(entry.id) },
+              el("span", {}, entry.q[0])))));
   },
 };
