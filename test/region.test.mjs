@@ -49,6 +49,16 @@ for (const id of REGION_ORDER) {
   ok(e === null || /^[0-9]{3,6}$/.test(e), `${id} emergency is dialable digits or null (got ${e})`);
 }
 
+// "anonymous" is a CLAIM: only lines carrying anon:true may be described that
+// way. This drifted three times when the word lived in prose.
+for (const id of REGION_ORDER) {
+  for (const l of REGIONS[id].lines) {
+    if (l.anon) ok(/anonymous/i.test(l.note || ""), `${id}/${l.name} anon:true is reflected in its note`);
+  }
+}
+ok(REGIONS.us.lines.every((l) => !l.anon), "988 is NOT flagged anonymous (confidential, but can dispatch)");
+ok(REGIONS.other.lines.length === 0, "'other' has no lines, so nothing can be called anonymous there");
+
 // exactly one region may claim verified law — the corpus is Ontario's
 const verified = REGION_ORDER.filter((id) => REGIONS[id].lawVerified);
 ok(verified.length === 1 && verified[0] === "on-ca",

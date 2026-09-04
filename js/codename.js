@@ -15,7 +15,7 @@ import { el, clearNode, copyText } from "./ui.js";
 import { store } from "./store.js";
 import { safety } from "./safety.js";
 import { relayPost, warmRelay, RELAY_ENABLED } from "./config.js";
-import { helpInline } from "./crisis.js";
+import { helpInline, primaryIsAnon } from "./crisis.js";
 
 const REFUSALS = {
   personal: "That's a personal email address. Level 2 only writes to school accounts — that rule is what stops this from becoming a way to send anonymous messages to anyone. Use your counsellor's school address.",
@@ -152,8 +152,10 @@ function crisisFork(status, { raise = true, fam, restoreTo } = {}) {
       el("div", { class: "answer-body" },
         el("p", {}, el("b", {}, "This one wasn't sent — on purpose. "),
           "It reads like you might not be safe right now, and an email can sit unread in an inbox for a day. That's the wrong speed for this."),
-        el("p", {}, "The people on those numbers answer immediately, and they're anonymous too: ",
-          helpInline(), "."),
+        // "those numbers" was also wrong for an unknown country, where
+        // helpInline() renders a directory rather than a number
+        el("p", {}, "This answers immediately",
+          primaryIsAnon() ? ", and it's anonymous too" : "", ": ", helpInline(), "."),
         el("p", {}, el("b", {}, "If that's not what you meant, "),
           "you can reword it and send again — or use ",
           el("a", { href: "#/tell" }, "Level 3"), " to set up talking in person instead."))));
@@ -306,7 +308,8 @@ function renderCreated(res) {
     el("div", { class: "answer-card", style: "margin-top:24px" },
       el("div", { class: "answer-body" },
         el("p", {}, el("b", {}, "What happens now. "), "It's in their inbox. Counsellors are usually in a school building, so a reply may take a day — that's normal, not a no."),
-        el("p", {}, el("b", {}, "If things get heavy while you wait: "), helpInline(), " answers right now, anonymously."))),
+        el("p", {}, el("b", {}, "If things get heavy while you wait: "), helpInline(),
+          primaryIsAnon() ? " answers right now, anonymously." : " answers right now."))),
 
     el("div", { class: "btn-row" },
       el("button", {

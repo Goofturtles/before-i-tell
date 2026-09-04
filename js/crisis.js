@@ -78,6 +78,14 @@ export function helpInline() {
   }, "a helpline where you are")];
 }
 
+/** May copy call the primary line "anonymous"? Only where region.js records
+    it. The word is a promise about what happens to what you say, so it must
+    be verified per service — 988 is confidential but can dispatch, and for an
+    unknown country the link is a whole directory we know nothing about. */
+export function primaryIsAnon() {
+  return Boolean(currentRegion().lines[0]?.anon);
+}
+
 /** The tier-2 banner's inline links — same data, so the banner can never
     advertise a number the takeover doesn't. */
 export function bannerLines() {
@@ -91,6 +99,8 @@ export function bannerLines() {
     target: "_blank", rel: "noopener noreferrer",
   }, "Find a helpline where you are")];
 }
+
+let regionAnnounce = 0;
 
 /** The compact strip at the bottom of every page. */
 export function crisisStrip(container) {
@@ -128,7 +138,12 @@ export function crisisStrip(container) {
     onchange: (e) => {
       setRegion(e.target.value);
       wireCrisis();                 // this REPLACES the select you're using…
-      dispatchEvent(new CustomEvent("bit:region"));
+      /* Debounced: on Windows a closed <select> fires `change` once per arrow
+         key, and each dispatch blanks + refills the tier-2 banner (a polite
+         live region) and rebuilds #view. Nine options meant nine blanks and
+         nine announcements. The strip above still updates instantly. */
+      clearTimeout(regionAnnounce);
+      regionAnnounce = setTimeout(() => dispatchEvent(new CustomEvent("bit:region")), 150);
       // …so put focus back on its replacement. Without this, changing the
       // dropdown drops focus to <body> and the /ask re-render then throws the
       // user to the top of the page (WCAG 3.2.2).

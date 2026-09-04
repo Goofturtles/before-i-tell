@@ -10,6 +10,13 @@
    invented number: a wrong crisis number is worse than no number, because it
    fails at the exact moment someone reaches for it.
 
+   Same rule for the word "anonymous": it is a claim, not a description. Only
+   a line carrying `anon: true` may be called anonymous in copy — Kids Help
+   Phone says so on its own site. Services like 988 are confidential but can
+   initiate an emergency response, so calling them "anonymous" would be a
+   promise we cannot keep. The flag exists so the claim lives in data next to
+   its source, instead of in prose where it drifted three times.
+
    The reporting-law corpus stays Ontario-only, and `lawVerified` is the flag
    that keeps it honest. Mandatory-reporting duties differ per country, per
    state, and per profession; generating them would produce confident, cited-
@@ -28,8 +35,8 @@ export const REGIONS = {
     lawVerified: true,             // the corpus in corpus.js is Ontario law
     emergency: "911",
     lines: [
-      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868" },
-      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers.", sms: "686868", smsBody: "CONNECT", display: "686868" },
+      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true },
+      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true },
       { name: "9-8-8 · call or text", note: "Suicide Crisis Helpline, 24/7.", tel: "988", display: "9-8-8" },
     ],
     src: "kidshelpphone.ca, 988.ca",
@@ -40,8 +47,8 @@ export const REGIONS = {
     lawVerified: false,
     emergency: "911",
     lines: [
-      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868" },
-      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers.", sms: "686868", smsBody: "CONNECT", display: "686868" },
+      { name: "Kids Help Phone", note: "Talk to a real counsellor, 24/7. Anonymous.", tel: "1-800-668-6868", display: "1-800-668-6868", anon: true },
+      { name: "Text instead", note: "Text CONNECT — a trained volunteer answers. Anonymous.", sms: "686868", smsBody: "CONNECT", display: "686868", anon: true },
       { name: "9-8-8 · call or text", note: "Suicide Crisis Helpline, 24/7.", tel: "988", display: "9-8-8" },
     ],
     src: "kidshelpphone.ca, 988.ca",
