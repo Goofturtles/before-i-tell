@@ -26,7 +26,12 @@ const REFUSALS = {
   rate_recipient: "That address has already received several messages today. Give it a day.",
   too_long: "That's longer than a first message needs to be. Trim it a bit.",
   empty: "Write something first.",
-  auth: "That codename and passphrase don't match a conversation. Check for typos — the passphrase is case-sensitive.",
+  /* Names the OTHER cause too. The relay runs on a free plan with no
+     persistent disk, so a redeploy erases every conversation — and when that
+     happens a student sees this message and reasonably concludes they typed
+     their own passphrase wrong. Blaming them for our data loss is the kind of
+     small dishonesty this product exists not to commit. */
+  auth: "That codename and passphrase don't open a conversation. Two things it could be: a typo (the passphrase is case-sensitive), or the conversation is genuinely gone — this runs on a free server that loses stored conversations when it restarts. If you're sure you typed it right, that's what happened, and it's our fault, not yours. Your counsellor still has your original email in their inbox; you can start a new conversation below, or reply to them another way.",
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
@@ -65,6 +70,19 @@ function statusRegion() {
     from a role here (a nested live region would double-announce) */
 function note(text) {
   return el("p", { class: "decode-note" }, text);
+}
+
+/** Transient feedback clears itself. A "couldn't refresh, try again" note that
+    stays on screen forever reads, minutes later, as the current state of
+    things — and on this screen the current state is what a student is anxious
+    about. Long enough to read twice (12s), and only for notes that describe a
+    passing condition: refusals that need a decision stay put. */
+function fading(node, ms = 12000) {
+  setTimeout(() => {
+    // don't yank text out from under someone reading it with a screen reader
+    if (node.isConnected && !node.contains(document.activeElement)) node.remove();
+  }, ms);
+  return node;
 }
 
 /** Refusals that offer a way out render as rich notes with a real link —
@@ -427,7 +445,7 @@ function renderThread(thread, pass) {
       openThread(thread.tag, pass, () => {
         replyBtn.disabled = false;
         replyBtn.textContent = "Send reply";
-        status.append(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment."));
+        status.append(fading(note("Your reply was sent — the refresh just didn't load. Press Refresh in a moment.")));
       });
       return;
     }
@@ -479,7 +497,7 @@ function renderThread(thread, pass) {
       el("button", {
         class: "btn btn--quiet", type: "button",
         onclick: () => openThread(thread.tag, pass, () => {
-          status.append(note("Couldn't refresh just now. Try again in a minute — nothing was lost."));
+          status.append(fading(note("Couldn't refresh just now. Try again in a minute — nothing was lost.")));
         }),
       }, "Refresh")),
 

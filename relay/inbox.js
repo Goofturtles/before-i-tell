@@ -133,7 +133,22 @@ async function pollImap() {
       user: process.env.BIT_GMAIL_USER,
       pass: process.env.BIT_GMAIL_APP_PASSWORD,
     },
+    // a dead socket must fail THIS poll, not hang until Node's default timeout
+    socketTimeout: 60000,
+    greetingTimeout: 20000,
   });
+
+  /* THE relay-killer, fixed.
+     imapflow emits an 'error' EVENT on socket timeouts (Gmail drops idle IMAP
+     connections routinely). An unhandled 'error' event is fatal in Node — it
+     rethrows outside any try/catch, so pollOnce()'s catch never saw it. The
+     process died roughly every five minutes, and because free-tier storage does
+     not survive a restart, every restart took every conversation with it.
+     One listener turns a fatal event into an ordinary failed poll. */
+  client.on("error", (err) => {
+    console.error("[inbox] imap socket error (poll abandoned, relay stays up):", err.message);
+  });
+
   let n = 0;
   await client.connect();
   try {
