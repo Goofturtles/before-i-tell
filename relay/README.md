@@ -57,17 +57,31 @@ file in `inbox-drop/`:
 
 ```
 To: relay+bit<THREAD_TAG>@localhost
+From: <THE THREAD'S OWN RECIPIENT>
 
 Come by my office any time this week.
 ```
 
 The tag is in the `.eml` you just generated. The poller picks it up within 20s.
 
-Run the test suite (59 assertions, no network, no install):
+**The `From:` line is required, and must be the exact address the thread writes
+to.** A reply is only filed if it genuinely came from that adult — anyone the
+counsellor forwards our email to also holds the tag, so the tag alone is not
+proof of identity. Without a matching `From:`, the drop file is rejected as an
+impostor and renamed `.done`, which looks like the reply silently vanishing.
+
+Run the test suites (no network, no install):
 
 ```bash
-node test/relay.test.mjs
+npm test
 ```
+
+Three suites, and the last two exist to protect the durability work: `relay`
+(the API and reply routing), `degraded` (a failed boot read disables writes,
+and /send, /thread and the poller all refuse rather than pretend), and
+`writefail` (writes failing *after* a good boot — the state a free-plan
+database actually ends in). Each runs in its own process, because the storage
+backend is chosen once at import.
 
 ---
 
@@ -165,12 +179,25 @@ Refusal reasons a client should handle: `personal`, `unknown`, `malformed`,
 `blocked`, `crisis`, `rate`, `rate_recipient`, `too_long`, `empty`, `auth`,
 `delivery`, `offline`, `timeout`, `capacity`, `storage`.
 
-`capacity` and `storage` are returned by **both** `/send` and `/thread`, and
-their copy deliberately ends mid-sentence so the client can append the crisis
-line for the reader's own region — render them through `refusalNote()`, never
-as bare text, or the sentence dangles and the helpline link disappears.
-`storage` means the boot read failed and writes are disabled: nothing was
-sent, nothing was lost, and no passphrase was issued.
+`storage` is returned by both `/send` and `/thread`; `capacity` only by
+`/send`. Their copy deliberately ends mid-sentence so the client can append the
+crisis line for the reader's own region — render them through `refusalNote()`,
+never as bare text, or the sentence dangles and the helpline link disappears.
+The client detects that structurally (no terminal punctuation), so a new
+open-ended refusal needs no list updating.
+
+`storage` covers **two** different failures, and the distinction matters —
+assuming only the first is what let the poller destroy replies:
+
+1. **The boot read failed** (`degraded()`): writes are disabled for the whole
+   process, `/send` and `/thread` refuse, and the poller collects nothing.
+2. **Writes are failing after a good boot** — the state a free-plan database
+   actually ends in. `degraded()` is false and cannot see it, so every write
+   path must confirm its own write landed: `/send` and `POST /block` await
+   `settled()` before promising anything, and `record()` returns
+   `"unpersisted"` so the reply is left in the mailbox instead of consumed.
+
+In both cases nothing was sent, nothing was lost, and no passphrase was issued.
 
 ---
 

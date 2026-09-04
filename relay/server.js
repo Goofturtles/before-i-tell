@@ -57,6 +57,18 @@ function bump(key, limit, windowMs) {
   return true;
 }
 
+/** Give a charge back for work that provably did not happen.
+    Charging happens before we try to store or send, so a storage or delivery
+    failure would otherwise spend the student's budget on nothing: six failed
+    attempts exhaust `to:<address>` (6/day) and they are then told "That
+    address has already received several messages today" — it received none.
+    Only called on paths that roll the message back AND sent no email, so this
+    cannot hand an abuser free retries. */
+function refund(key) {
+  const rec = hits.get(key);
+  if (rec && rec.n > 0) rec.n--;
+}
+
 /** check WITHOUT charging — /send verifies every limit first, then charges
     them all at once, so a refusal on limit #3 can't have burned limits #1-2
     (six refused retries used to exhaust a recipient's daily budget with
@@ -251,6 +263,8 @@ async function handleSend(req, res, body) {
     console.error("[send] refusing: the message could not be persisted");
     if (first) store.dropThread(thread.tag);
     else store.dropMessage(thread.tag, stored);
+    // nothing stored and nothing emailed: give the budgets back
+    for (const [k] of charges) refund(k);
     return json(res, 503, { ok: false, reason: "storage" });
   }
 
@@ -264,6 +278,9 @@ async function handleSend(req, res, body) {
     // message, so the student doesn't see it sitting there looking sent.
     if (first) store.dropThread(thread.tag);
     else store.dropMessage(thread.tag, stored);
+    // undelivered and rolled back: the budgets must not record a message that
+    // never reached anyone, or the next honest attempt is refused as "rate"
+    for (const [k] of charges) refund(k);
     return json(res, 502, { ok: false, reason: "delivery" });
   }
 
@@ -383,11 +400,15 @@ async function handleBlockAct(req, res) {
   }
   const thread = store.getThread(tag);
   if (!thread) return blockPage(res, "Nothing to block", "That link has expired or the conversation is already closed.");
-  store.blockRecipient(thread.to);
+  /* Gate on the return value: blockRecipient answers false when the address is
+     ALREADY blocked, and schedules no write. settled() would then report some
+     earlier, unrelated write — telling a counsellor who is genuinely opted out
+     that we couldn't save it. Only check persistence when we actually wrote. */
+  const newlyBlocked = store.blockRecipient(thread.to);
   /* An opt-out that lives only in RAM is not an opt-out: the next restart
      resumes messaging an adult who explicitly asked us to stop. Never print
      "Nobody has to do anything else" until the block is actually stored. */
-  if ((await store.settled()) === false) {
+  if (newlyBlocked && (await store.settled()) === false) {
     console.error("[block] could not persist the opt-out for", thread.to);
     return blockPage(res, "Not saved — please try again",
       `We could not record the opt-out for <b>${escHtml(thread.to)}</b> just now, so we won't pretend it's done. No messages are being sent while our storage is down. Please use this link again shortly.`);

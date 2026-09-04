@@ -310,7 +310,18 @@ export function dropMessage(tag, msg) {
   const i = t.messages.indexOf(msg);
   if (i === -1) return false;
   t.messages.splice(i, 1);
-  t.lastAt = t.messages.length ? t.messages[t.messages.length - 1].at : t.createdAt;
+  /* addMessage sets adultReplied; rolling the message back must clear it, or
+     the thread keeps advertising a reply that no longer exists. That is not
+     cosmetic: the student opens it to "They replied — read it whenever you're
+     ready", finds nothing, and the note explaining that school filters
+     sometimes delay mail is suppressed because we think it already arrived. */
+  t.adultReplied = t.messages.some((m) => m.from === "adult");
+  /* Never move lastAt BACKWARDS. It is only read by retention, and lowering it
+     can drop a nearly-expired thread past the prune cutoff — after which the
+     retry sees an unknown tag, classifies the reply as junk, and consumes it.
+     Keeping it costs nothing: it is never sent to the client. */
+  const recomputed = t.messages.length ? t.messages[t.messages.length - 1].at : t.createdAt;
+  t.lastAt = Math.max(t.lastAt || 0, recomputed);
   flush();
   return true;
 }

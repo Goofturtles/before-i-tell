@@ -55,13 +55,17 @@ const REFUSALS = {
 };
 
 /* DERIVED, never hand-listed. These refusals stop mid-sentence so the caller
-   can append the reader's own regional crisis line; printed raw they end
-   "…answers right now on " and swallow the helpline entirely. A hand-kept set
-   drifts the moment someone adds a third one and forgets — precisely the bug
-   this guards against, and it already shipped once. Both renderers below
-   (refusalNote and failText) read this one set. */
+   can append the reader's own regional crisis line; printed raw they swallow
+   the helpline entirely. A hand-kept set drifts the moment someone adds one
+   and forgets — precisely the bug this guards against, and it already
+   shipped once. Both renderers below (refusalNote and failText) read this set.
+
+   The test is "does it end in terminal punctuation", i.e. the actual property.
+   An earlier version matched the trailing word "on", which is a phrasing, not
+   a property: "…available right now at " or a line ending in a colon would
+   have slipped straight through and re-shipped the dangling sentence. */
 const OPEN_ENDED = new Set(
-  Object.keys(REFUSALS).filter((k) => /\son\s*$/.test(REFUSALS[k])));
+  Object.keys(REFUSALS).filter((k) => !/[.!?]["')\]]*\s*$/.test(REFUSALS[k])));
 
 let mount = null;
 

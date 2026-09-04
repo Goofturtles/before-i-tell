@@ -95,6 +95,23 @@ ok("a reply is NOT consumed when the write fails (degraded() can't see this)",
    exists(reply) && !exists(reply + ".done"),
    `reply.txt=${exists(reply)} .done=${exists(reply + ".done")}`);
 
+/* The rollback must undo adultReplied too. addMessage sets it; if dropMessage
+   leaves it, the thread advertises "They replied — read it whenever you're
+   ready" with nothing to read, and suppresses the note explaining that school
+   filters sometimes delay mail. No suite asserted this, which is how it
+   shipped. */
+const rolled = store.getThread(live.thread.tag);
+ok("a rolled-back reply does not leave the thread claiming They replied",
+   rolled.adultReplied === false, JSON.stringify({
+     adultReplied: rolled.adultReplied, messages: rolled.messages.length }));
+ok("the rolled-back reply left no message behind to read",
+   rolled.messages.filter((m) => m.from === "adult").length === 0);
+
+/* NOT covered here: that a recovered poll files the reply exactly once.
+   DATA_FILE is resolved at import, so storage cannot be "repaired" mid-process
+   to test it — that needs a fixture the store can be pointed at twice. The
+   rollback above is what makes the retry safe; this is the gap in proving it. */
+
 await new Promise((r) => server.close(r));
 rmSync(TMP, { recursive: true, force: true });
 console.log(`\n${pass} passed, ${fail} failed\n`);
