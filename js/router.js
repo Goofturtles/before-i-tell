@@ -85,7 +85,7 @@ export const router = {
           heading.setAttribute("tabindex", "-1");
           heading.focus({ preventScroll: false });
         }
-      });
+      }, 0);
     }
     this._booted = true;
   },

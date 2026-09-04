@@ -263,11 +263,15 @@ export const safety = {
     const prev = store.session.get("s") || {};
     store.session.set("s", { ...prev, tier: 2, dismissed: true });
     store.session.remove("heldRoute");
-    if (this._releaseTrap) this._releaseTrap();
     document.removeEventListener("keydown", this._escBlock, true);
     removeEventListener("popstate", this._popBlock);
+    // un-inert BEFORE releasing the trap: _releaseTrap() restores focus to the
+    // element the student was using, and focusing an inert element is a no-op —
+    // so releasing first dropped them to <body> after "I'm safe right now",
+    // losing their place in whatever they were typing.
     (this._inerted || []).forEach((n) => { n.inert = false; });
     this._inerted = null;
+    if (this._releaseTrap) this._releaseTrap();
     this._overlay?.remove();
     document.body.style.overflow = "";
     router.unlock();
