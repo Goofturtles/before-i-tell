@@ -3,8 +3,9 @@
    Endpoints
      POST /send      start or continue a thread          → { tag, codename, pass? }
      POST /thread    read a thread (codename + pass)     → { messages }
-     GET  /block     one-click permanent opt-out for a recipient
-     GET  /health    liveness + mode
+     GET  /block     shows a confirm button — SAFE, mutates nothing
+     POST /block     performs the opt-out (see the note above handleBlockConfirm)
+     GET  /health    liveness + mode, storage state, refused-reply counters
 
    Design rules this file enforces:
      1. Recipients must look like school accounts (schools.js). Without that
