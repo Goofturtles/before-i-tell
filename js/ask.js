@@ -6,7 +6,7 @@ import { el, clearNode, appendKids } from "./ui.js";
 import { safety } from "./safety.js";
 import { retrieval } from "./retrieval.js";
 import { voice } from "./voice.js";
-import { currentRegion } from "./crisis.js";
+import { currentRegion, helpInline } from "./crisis.js";
 
 /* The corpus is Ontario law. Outside Ontario the honest move is to say so
    BEFORE the answers, not in a footnote under them — a student reading
@@ -64,9 +64,7 @@ function renderRefusal(container, alternates) {
       el("h2", {}, "Honestly? I'm not sure about that one."),
       el("div", { class: "answer-body" },
         el("p", {}, "Rules like these matter too much to guess at, so I only repeat what's actually written down in my sources. Guessing could steer you wrong, and you deserve better."),
-        el("p", {}, "A real person can answer anything, anonymously: ",
-          el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone, 1-800-668-6868"),
-          " or text CONNECT to 686868.")),
+        el("p", {}, "A real person can answer anything, anonymously: ", helpInline(), ".")),
       el("div", {},
         el("span", { class: "suggest-label" },
           alternates.length ? "Were you asking about one of these?" : "Things I can answer"),

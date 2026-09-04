@@ -7,7 +7,7 @@
 
 import { el } from "./ui.js";
 import { store } from "./store.js";
-import { REGIONS, REGION_ORDER, regionById, guessRegion, DEFAULT_REGION } from "./region.js";
+import { REGIONS, REGION_ORDER, regionById, guessRegion, telHref, DEFAULT_REGION } from "./region.js";
 
 /** The user's choice if they made one, else a timezone guess. Never a network
     lookup — the zero-external-request guarantee covers this too. */
@@ -25,18 +25,6 @@ export function currentRegionId() {
 
 export function setRegion(id) {
   if (REGIONS[id]) store.set("region", id);
-}
-
-/** true once the user has actively chosen, so the picker can prompt on a first
-    visit and stay out of the way afterwards */
-export function regionChosen() {
-  const saved = store.get("region");
-  return Boolean(saved && REGIONS[saved]);
-}
-
-function telHref(line) {
-  if (line.tel) return "tel:" + line.tel;
-  return "sms:" + line.sms + (line.smsBody ? "?&body=" + line.smsBody : "");
 }
 
 /** The routes block inside the tier-3 takeover. */
@@ -74,6 +62,22 @@ export function crisisRoutes() {
   return el("div", { class: "takeover__routes" }, rows);
 }
 
+/** Inline "here's who to call" for running prose — the honest refusal, the
+    Level 2 crisis fork, the post-send wait note. These are the quieter crisis
+    surfaces, and they were still handing a Canadian 1-800 to students in the
+    UK and Australia. Returns nodes, so callers splice it into a sentence. */
+export function helpInline() {
+  const r = currentRegion();
+  if (r.lines.length) {
+    const l = r.lines[0];
+    return [el("a", { href: telHref(l) }, l.name + ", " + l.display)];
+  }
+  return [el("a", {
+    href: r.directory ? r.directory.url : "https://findahelpline.com/",
+    target: "_blank", rel: "noopener noreferrer",
+  }, "a helpline where you are")];
+}
+
 /** The tier-2 banner's inline links — same data, so the banner can never
     advertise a number the takeover doesn't. */
 export function bannerLines() {
@@ -97,7 +101,7 @@ export function crisisStrip(container) {
   // keep the page's own heading (the adult page says "If they're in danger
   // right now:", which must not be replaced with the teen-voiced label), and
   // clear the picker too or repeat calls stack duplicate selects
-  [...inner.querySelectorAll("a, .muted, .region-pick")].forEach((n) => n.remove());
+  [...inner.querySelectorAll("a, .muted, .crisis__emerg, .region-pick")].forEach((n) => n.remove());
 
   r.lines.forEach((line) => {
     inner.append(el("a", { href: telHref(line) }, line.name + " " + line.display));
@@ -105,8 +109,11 @@ export function crisisStrip(container) {
   if (!r.lines.length && r.directory) {
     inner.append(el("a", { href: r.directory.url, target: "_blank", rel: "noopener noreferrer" }, r.directory.name));
   }
-  inner.append(el("span", { class: "muted" },
-    r.emergency ? "In immediate danger: " + r.emergency : "In immediate danger: your local emergency number"));
+  // an ANCHOR, not a span: adult.html shipped <a href="tel:911"> here and this
+  // used to replace it with dead text — on the page most likely opened on a
+  // phone. For an unknown country 112 is the honest dialable fallback.
+  inner.append(el("a", { href: "tel:" + (r.emergency || "112"), class: "crisis__emerg" },
+    r.emergency ? "In immediate danger: " + r.emergency : "In immediate danger: 112"));
 
   // The picker lives WITH the numbers, not buried in settings: its only job is
   // to make sure the numbers above are the right ones for where you are.
@@ -120,9 +127,13 @@ export function crisisStrip(container) {
     "aria-label": "Show help for which country",
     onchange: (e) => {
       setRegion(e.target.value);
-      wireCrisis();
-      // tell the rest of the app so any region-dependent screen can redraw
+      wireCrisis();                 // this REPLACES the select you're using…
       dispatchEvent(new CustomEvent("bit:region"));
+      // …so put focus back on its replacement. Without this, changing the
+      // dropdown drops focus to <body> and the /ask re-render then throws the
+      // user to the top of the page (WCAG 3.2.2).
+      const again = document.querySelector(".region-select");
+      if (again) again.focus();
     },
   }, REGION_ORDER.map((id) =>
     el("option", { value: id, selected: id === currentRegionId() }, REGIONS[id].name)));

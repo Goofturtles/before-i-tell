@@ -120,6 +120,13 @@ export const REGIONS = {
   },
 };
 
+/** The dialable href for a line. Exported so crisis.js and the test share ONE
+    implementation — a test with its own copy can pass while the real code drifts. */
+export function telHref(line) {
+  if (line.tel) return "tel:" + line.tel;
+  return "sms:" + line.sms + (line.smsBody ? "?&body=" + line.smsBody : "");
+}
+
 export function regionById(id) {
   return REGIONS[id] || REGIONS[DEFAULT_REGION];
 }

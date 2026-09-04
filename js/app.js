@@ -11,6 +11,7 @@ import { link } from "./link.js";
 import { scaffold, OPENERS, CLOSINGS, WHO_OPTIONS, NEED_OPTIONS } from "./scaffold.js";
 import { codename } from "./codename.js";
 import { RELAY_ENABLED } from "./config.js";
+import { currentRegion } from "./crisis.js";
 
 const view = $("#view");
 
@@ -219,8 +220,18 @@ const render = {
     });
     terms.save(selection);
 
+    /* These locked terms encode ONTARIO law. Presenting them to a student in
+       another country under "Always true" would assert a duty we have not
+       verified for them — the same violation the crisis takeover had. Outside
+       Ontario they are shown as what a good adult will usually tell you,
+       with the honest caveat attached. */
+    const lawKnown = currentRegion().lawVerified;
     const lockedGroup = el("fieldset", { class: "terms-form terms-group" },
-      el("legend", {}, "Always true — the law, shown honestly"),
+      el("legend", {}, lawKnown
+        ? "Always true — the law, shown honestly"
+        : "Usually true — but check where you are"),
+      lawKnown ? null : el("p", { class: "decode-note" },
+        "The two below are Ontario, Canada's rules, which is the only place we've verified. Somewhere else, the details differ — so treat these as the shape of the thing, and ask your school what their version is."),
       CATALOG.filter((t) => t.kind === "locked").map((t) =>
         el("div", { class: "term term--locked" },
           el("span", { class: "lock-icon", "aria-hidden": "true" }, "🔒"),
@@ -526,8 +537,13 @@ store.onWriteError = () => {
    destroy an unsent Level 2 message). Screens whose copy depends on the
    region — Ask's jurisdiction note — must therefore redraw themselves. */
 addEventListener("bit:region", () => {
+  // Call the screen's render directly instead of router.go(): the router
+  // moves focus to the <h1> after every navigation, which would yank the
+  // user from the country dropdown they just used to the top of the page
+  // (WCAG 3.2.2, On Input). Re-rendering in place keeps their focus put.
   const r = router.current();
-  if (r === "/ask") router.go(r);
+  if (r === "/ask") render.ask();
+  else if (r === "/tell/terms") render.tellTerms(); // its locked-terms copy is region-gated too
 });
 
 router.start({

@@ -192,18 +192,24 @@ export const safety = {
     const storedFam = store.session.get("s")?.fam;
     const fams = this._lastFams || new Set([storedFam === "abuse" ? "abuse" : "self"]);
 
-    /* The note below states ONTARIO law. Outside Ontario we must not assert
-       it — reporting duties differ by country, and telling a student in
-       Australia that a disclosure triggers "a children's aid society" is a
-       confident, wrong claim at the worst possible moment. Where the law
-       isn't verified, say what is true everywhere instead: the anonymous
-       line is anonymous, and their own school can answer the rest. */
+    /* The two branches below state ONTARIO law, and only Ontario is verified.
+       Telling a student in Australia that a disclosure triggers "a children's
+       aid society" would be a confident, wrong claim at the worst possible
+       moment — so outside Ontario we say only what we can stand behind: that
+       the duty depends where they live, that the listed services will talk,
+       and that they may ask their own school outright.
+
+       Note what this deliberately does NOT say. An earlier version called the
+       first listed line "anonymous… not reported anywhere" — unverified for
+       services we haven't checked (several can initiate an emergency
+       response), and for the "somewhere else" region lines[0] is undefined,
+       so it rendered "The line above", which is the 112 emergency row. It
+       promised anonymity for calling emergency services. */
     const lawKnown = currentRegion().lawVerified;
-    const anonLine = currentRegion().lines[0]?.name || "The line above";
     const honestNote = !lawKnown
       ? [
           "Honest note, because you deserve the truth: what a school adult would have to pass on depends on where you live, and we only have that verified for Ontario, Canada — so we're not going to guess at yours. ",
-          anonLine + " is anonymous: you choose what to share and when, and nothing you say there is reported anywhere. If you want to know your own school's rules, you're allowed to ask them straight out before you tell them anything.",
+          "Two things you can do anyway: the services above will talk this through with you, and you can ask your own school outright — \"if I tell you something, what would you have to pass on?\" — before you tell them anything. A good adult will answer that plainly.",
         ]
       : fams.has("abuse")
       ? [
@@ -310,6 +316,16 @@ export function quickExit() {
 }
 
 /* ---------------- Tier 2 banner ---------------- */
+
+/* The banner is session-persistent, so a student who trips tier 2 under the
+   timezone guess and THEN corrects their country would otherwise keep an
+   undialable Ontario number pinned under the nav for the rest of the session. */
+addEventListener("bit:region", () => {
+  const existing = $(".safety-banner");
+  if (!existing) return;
+  existing.remove();
+  renderBanner();
+});
 
 function renderBanner() {
   if ($(".safety-banner")) return;

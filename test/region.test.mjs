@@ -1,13 +1,13 @@
 /* Crisis-data integrity test. This is the highest-stakes data in the product:
    a number that doesn't dial fails at the exact moment someone reaches for it. */
-import { REGIONS, REGION_ORDER, regionById, DEFAULT_REGION }
+import { REGIONS, REGION_ORDER, regionById, telHref, DEFAULT_REGION }
   from "../js/region.js";
 
 let fail = 0;
 const ok = (cond, msg) => { if (!cond) { console.log("FAIL " + msg); fail++; } };
 
-// mirrors crisis.js telHref()
-const telHref = (l) => l.tel ? "tel:" + l.tel : "sms:" + l.sms + (l.smsBody ? "?&body=" + l.smsBody : "");
+// telHref is IMPORTED, not re-implemented: a private copy could pass here
+// while the real renderer drifted.
 
 for (const id of REGION_ORDER) {
   const r = REGIONS[id];
@@ -37,6 +37,16 @@ for (const id of REGION_ORDER) {
   ok(typeof r.lawVerified === "boolean", `${id} declares lawVerified`);
   // provenance: every region with numbers must record where they came from
   if (r.lines.length) ok(r.src && r.src.length, `${id} records its source`);
+}
+
+// the picker must offer every region that exists, and nothing that doesn't
+ok(REGION_ORDER.length === Object.keys(REGIONS).length,
+   `REGION_ORDER covers every region (${REGION_ORDER.length} vs ${Object.keys(REGIONS).length})`);
+for (const k of Object.keys(REGIONS)) ok(REGION_ORDER.includes(k), `${k} appears in REGION_ORDER`);
+// an emergency number must be dialable digits, never prose
+for (const id of REGION_ORDER) {
+  const e = REGIONS[id].emergency;
+  ok(e === null || /^[0-9]{3,6}$/.test(e), `${id} emergency is dialable digits or null (got ${e})`);
 }
 
 // exactly one region may claim verified law — the corpus is Ontario's

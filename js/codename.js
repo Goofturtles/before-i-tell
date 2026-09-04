@@ -15,6 +15,7 @@ import { el, clearNode, copyText } from "./ui.js";
 import { store } from "./store.js";
 import { safety } from "./safety.js";
 import { relayPost, warmRelay, RELAY_ENABLED } from "./config.js";
+import { helpInline } from "./crisis.js";
 
 const REFUSALS = {
   personal: "That's a personal email address. Level 2 only writes to school accounts — that rule is what stops this from becoming a way to send anonymous messages to anyone. Use your counsellor's school address.",
@@ -29,7 +30,9 @@ const REFUSALS = {
   delivery: "The message couldn't be delivered right now. Nothing was sent. Try again in a minute.",
   offline: "Can't reach the relay right now. Nothing was sent.",
   timeout: "The relay took too long to answer, so we can't confirm whether this sent. Wait a minute and try again — if it turns out both copies went through, a duplicate is harmless.",
-  capacity: "The relay has hit its daily sending limit — nothing was sent. It resets within 24 hours. If this can't wait, Level 3 needs no email, and Kids Help Phone (1-800-668-6868) answers right now.",
+  // no number in the string: refusalNote() appends the caller's own region's
+  // line, so this can't hand a Canadian 1-800 to a student in Australia
+  capacity: "The relay has hit its daily sending limit — nothing was sent. It resets within 24 hours. If this can't wait, Level 3 needs no email, and a real person answers right now on ",
 };
 
 let mount = null;
@@ -74,6 +77,10 @@ function refusalNote(status, reason) {
       el("p", { style: "margin:0" },
         el("a", { href: "#/tell" }, "Go to Level 3"),
         " — it prepares the conversation with no email at all.")));
+    return;
+  }
+  if (reason === "capacity") {
+    status.append(el("p", { class: "decode-note" }, REFUSALS.capacity, helpInline(), "."));
     return;
   }
   status.append(note(REFUSALS[reason] || "Something went wrong. Nothing was sent."));
@@ -146,8 +153,7 @@ function crisisFork(status, { raise = true, fam, restoreTo } = {}) {
         el("p", {}, el("b", {}, "This one wasn't sent — on purpose. "),
           "It reads like you might not be safe right now, and an email can sit unread in an inbox for a day. That's the wrong speed for this."),
         el("p", {}, "The people on those numbers answer immediately, and they're anonymous too: ",
-          el("a", { href: "tel:1-800-668-6868" }, "Kids Help Phone 1-800-668-6868"), " · ",
-          el("a", { href: "sms:686868?&body=CONNECT" }, "text CONNECT to 686868"), "."),
+          helpInline(), "."),
         el("p", {}, el("b", {}, "If that's not what you meant, "),
           "you can reword it and send again — or use ",
           el("a", { href: "#/tell" }, "Level 3"), " to set up talking in person instead."))));
@@ -300,7 +306,7 @@ function renderCreated(res) {
     el("div", { class: "answer-card", style: "margin-top:24px" },
       el("div", { class: "answer-body" },
         el("p", {}, el("b", {}, "What happens now. "), "It's in their inbox. Counsellors are usually in a school building, so a reply may take a day — that's normal, not a no."),
-        el("p", {}, el("b", {}, "If things get heavy while you wait: "), "Kids Help Phone, ", el("a", { href: "tel:1-800-668-6868" }, "1-800-668-6868"), ", answers right now, anonymously."))),
+        el("p", {}, el("b", {}, "If things get heavy while you wait: "), helpInline(), " answers right now, anonymously."))),
 
     el("div", { class: "btn-row" },
       el("button", {
