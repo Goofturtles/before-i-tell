@@ -1149,3 +1149,16 @@ body:has(.safety-banner) { --chrome-h: 160px; }
   .region-pick { width: 100%; }
   .region-select { flex: 1; max-width: none; }
 }
+
+/* --- evidence strip: let the number carry the section ---
+   Measured at 375px the stat sat at 30px — the floor of --t-display-md — so
+   the research read as body copy. Every reference for this pattern (Zipline,
+   Headspace, Collins) makes the numeral dominant and the citation quiet. Own
+   clamp rather than a token change: --t-display-md is shared with headings. */
+.evidence__stat {
+  font-size: clamp(44px, 11vw, 60px);
+  display: block;
+  margin-bottom: var(--s-2);
+}
+/* the citation is provenance, not content — keep it legible but recessive */
+.evidence__item cite { opacity: 0.85; }
